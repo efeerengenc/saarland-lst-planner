@@ -8,6 +8,8 @@ interface SchedulePlannerProps {
   customCourses: Course[];
   onCourseClick: (course: Course) => void;
   scheduleOverrides: Record<string, TimeSlot[]>;
+  selectedSemId: string;
+  onSelectedSemIdChange: (id: string) => void;
 }
 
 const WEEKDAYS: Weekday[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -33,8 +35,7 @@ export interface ScheduleEntry {
 
 const BROWSE_MODE_ID = '__browse__';
 
-export function SchedulePlanner({ semesters, customCourses, onCourseClick, scheduleOverrides }: SchedulePlannerProps) {
-  const [selectedSemId, setSelectedSemId] = useState(semesters[0]?.id ?? BROWSE_MODE_ID);
+export function SchedulePlanner({ semesters, customCourses, onCourseClick, scheduleOverrides, selectedSemId, onSelectedSemIdChange: setSelectedSemId }: SchedulePlannerProps) {
   const [extraCourseIds, setExtraCourseIds] = useState<Set<string>>(new Set());
   const [showCoursePicker, setShowCoursePicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');

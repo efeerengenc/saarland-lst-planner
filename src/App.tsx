@@ -55,6 +55,7 @@ export default function App() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [scheduleSemId, setScheduleSemId] = useState(activePlan.semesters[0]?.id ?? '__browse__');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -362,6 +363,8 @@ export default function App() {
               customCourses={activePlan.customCourses}
               onCourseClick={setSelectedCourse}
               scheduleOverrides={overrides}
+              selectedSemId={scheduleSemId}
+              onSelectedSemIdChange={setScheduleSemId}
             />
           </div>
         )}
