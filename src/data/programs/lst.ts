@@ -1026,7 +1026,7 @@ export const LST_COURSES: Course[] = [
 
 export const lstProgram: ProgramConfig = {
   id: 'lst',
-  name: 'Language Science & Technology',
+  name: 'Language Science and Technology',
   shortName: 'LST',
   courses: LST_COURSES,
 

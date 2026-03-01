@@ -197,9 +197,8 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
 
       {/* Top bar */}
       <header className="shrink-0 border-b bg-white shadow-sm">
-        {/* Row 1: Program selector + plan controls */}
-        <div className="flex items-center gap-2 px-2 py-1.5 sm:px-4 sm:py-2">
-          {/* Mobile hamburger */}
+        {/* Desktop: single row */}
+        <div className="hidden sm:flex items-center gap-2 px-4 py-2">
           <button
             onClick={() => setSidebarOpen(true)}
             className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100 shrink-0"
@@ -209,30 +208,23 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-
-          {/* Program selector */}
           <select
             value={programId}
             onChange={(e) => onProgramChange(e.target.value)}
-            className="rounded border px-1.5 sm:px-2 py-1 text-xs sm:text-sm font-bold text-gray-800 bg-transparent cursor-pointer min-w-0 shrink"
+            className="rounded border px-2 py-1 text-sm font-bold text-gray-800 bg-transparent cursor-pointer"
           >
             {PROGRAMS.map(p => (
-              <option key={p.id} value={p.id}>{p.shortName} Study Planner</option>
+              <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-
-          <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 shrink-0">
+          <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
             Saarland University
           </span>
-
-          {/* Spacer */}
           <div className="flex-1" />
-
-          {/* Plan selector + actions */}
           <select
             value={activePlanId}
             onChange={(e) => setActivePlanId(e.target.value)}
-            className="rounded border px-1.5 sm:px-2 py-1 text-xs sm:text-sm min-w-0 shrink max-w-[120px] sm:max-w-none"
+            className="rounded border px-2 py-1 text-sm"
           >
             {plans.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
@@ -240,66 +232,33 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
           </select>
           <button
             onClick={() => createNewPlan(`Plan ${plans.length + 1}`)}
-            className="rounded bg-blue-500 px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-white hover:bg-blue-600 shrink-0"
+            className="rounded bg-blue-500 px-3 py-1 text-sm font-medium text-white hover:bg-blue-600"
           >
-            <span className="sm:hidden">+</span>
-            <span className="hidden sm:inline">+ New Plan</span>
+            + New Plan
           </button>
           {plans.length > 1 && (
             <button
               onClick={() => deletePlan(activePlanId)}
-              className="hidden sm:inline-block rounded border border-red-200 px-2 py-1 text-sm text-red-500 hover:bg-red-50 shrink-0"
+              className="rounded border border-red-200 px-2 py-1 text-sm text-red-500 hover:bg-red-50"
             >
               Delete
             </button>
           )}
-          <div className="hidden sm:block ml-1 h-4 w-px bg-gray-300" />
+          <div className="ml-1 h-4 w-px bg-gray-300" />
           <button
             onClick={handleExport}
-            className="hidden sm:inline-block rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50 shrink-0"
+            className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
             title="Export all plans as JSON"
           >
             ↓ Export
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="hidden sm:inline-block rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50 shrink-0"
+            className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
             title="Import plans from JSON file"
           >
             ↑ Import
           </button>
-          {/* Mobile-only compact buttons for export/import/delete */}
-          <div className="flex items-center gap-1 sm:hidden">
-            {plans.length > 1 && (
-              <button
-                onClick={() => deletePlan(activePlanId)}
-                className="rounded border border-red-200 p-1 text-red-500 hover:bg-red-50"
-                title="Delete plan"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            )}
-            <button
-              onClick={handleExport}
-              className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-50"
-              title="Export"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-50"
-              title="Import"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-            </button>
-          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -307,6 +266,86 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
             onChange={handleImportFile}
             className="hidden"
           />
+        </div>
+
+        {/* Mobile: two rows */}
+        <div className="sm:hidden">
+          {/* Mobile row 1: hamburger + program selector */}
+          <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-100">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100 shrink-0"
+              title="Open course catalog"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <select
+              value={programId}
+              onChange={(e) => onProgramChange(e.target.value)}
+              className="flex-1 rounded border px-2 py-1 text-sm font-bold text-gray-800 bg-transparent cursor-pointer min-w-0"
+            >
+              {PROGRAMS.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          {/* Mobile row 2: plan selector + actions */}
+          <div className="flex items-center gap-1.5 px-2 py-1.5">
+            <select
+              value={activePlanId}
+              onChange={(e) => setActivePlanId(e.target.value)}
+              className="flex-1 rounded border px-2 py-1 text-xs min-w-0"
+            >
+              {plans.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => createNewPlan(`Plan ${plans.length + 1}`)}
+              className="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600 shrink-0"
+            >
+              +
+            </button>
+            {plans.length > 1 && (
+              <button
+                onClick={() => deletePlan(activePlanId)}
+                className="rounded border border-red-200 p-1 text-red-500 hover:bg-red-50 shrink-0"
+                title="Delete plan"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+            <div className="h-4 w-px bg-gray-200" />
+            <button
+              onClick={handleExport}
+              className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-50 shrink-0"
+              title="Export"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-50 shrink-0"
+              title="Import"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+          </div>
         </div>
       </header>
 
