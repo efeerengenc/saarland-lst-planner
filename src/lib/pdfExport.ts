@@ -110,17 +110,87 @@ export function exportSchedulePDF(entries: ScheduleEntry[], semesterLabel: strin
   doc.setLineWidth(0.3);
   doc.rect(gridLeft, gridTop, gridW, gridH);
 
+  // Compute overlap layout for PDF (same logic as SchedulePlanner)
+  function pdfOverlaps(a: ScheduleEntry, b: ScheduleEntry): boolean {
+    if (a.slot.day !== b.slot.day) return false;
+    if (a.course.id === b.course.id) return false;
+    const aS = timeToMinutes(a.slot.start), aE = timeToMinutes(a.slot.end);
+    const bS = timeToMinutes(b.slot.start), bE = timeToMinutes(b.slot.end);
+    return aS < bE && bS < aE;
+  }
+
+  type PdfLayout = { col: number; totalCols: number };
+  const pdfLayoutMap = new Map<number, PdfLayout>();
+
+  for (const day of WEEKDAYS) {
+    const dayEntries = entries
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => e.slot.day === day);
+
+    const groups: number[][] = [];
+    const visited = new Set<number>();
+    for (const { i } of dayEntries) {
+      if (visited.has(i)) continue;
+      const group = [i];
+      visited.add(i);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const { i: j } of dayEntries) {
+          if (visited.has(j)) continue;
+          for (const gi of group) {
+            if (pdfOverlaps(entries[gi], entries[j])) {
+              group.push(j);
+              visited.add(j);
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+      groups.push(group);
+    }
+
+    for (const group of groups) {
+      if (group.length === 1) {
+        pdfLayoutMap.set(group[0], { col: 0, totalCols: 1 });
+        continue;
+      }
+      group.sort((a, b) => {
+        const d = timeToMinutes(entries[a].slot.start) - timeToMinutes(entries[b].slot.start);
+        return d !== 0 ? d : timeToMinutes(entries[b].slot.end) - timeToMinutes(entries[a].slot.end);
+      });
+      const cols: number[] = new Array(group.length).fill(-1);
+      for (let gi = 0; gi < group.length; gi++) {
+        const used = new Set<number>();
+        for (let gj = 0; gj < gi; gj++) {
+          if (pdfOverlaps(entries[group[gi]], entries[group[gj]])) used.add(cols[gj]);
+        }
+        let c = 0;
+        while (used.has(c)) c++;
+        cols[gi] = c;
+      }
+      const total = Math.max(...cols) + 1;
+      for (let gi = 0; gi < group.length; gi++) {
+        pdfLayoutMap.set(group[gi], { col: cols[gi], totalCols: total });
+      }
+    }
+  }
+
   // Course blocks
-  for (const entry of entries) {
+  for (let idx = 0; idx < entries.length; idx++) {
+    const entry = entries[idx];
     const dayIdx = WEEKDAYS.indexOf(entry.slot.day as Weekday);
     if (dayIdx < 0) continue;
 
+    const layout = pdfLayoutMap.get(idx) ?? { col: 0, totalCols: 1 };
     const startMin = timeToMinutes(entry.slot.start) - START_HOUR * 60;
     const endMin = timeToMinutes(entry.slot.end) - START_HOUR * 60;
 
-    const x = gridLeft + dayIdx * colW + 0.5;
+    const slotW = (colW - 1) / layout.totalCols;
+    const x = gridLeft + dayIdx * colW + 0.5 + layout.col * slotW;
     const y = gridTop + startMin * pxPerMin;
-    const w = colW - 1;
+    const w = slotW;
     const h = (endMin - startMin) * pxPerMin;
 
     const colors = PDF_COLORS[entry.course.category] ?? PDF_COLORS['other'];

@@ -113,8 +113,8 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
     });
   };
 
-  // Check for time conflicts
-  function hasConflict(a: ScheduleEntry, b: ScheduleEntry): boolean {
+  // Check for time conflicts and compute layout columns
+  function overlaps(a: ScheduleEntry, b: ScheduleEntry): boolean {
     if (a.slot.day !== b.slot.day) return false;
     if (a.course.id === b.course.id) return false;
     const aStart = timeToMinutes(a.slot.start);
@@ -127,9 +127,82 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
   const conflicts = new Set<string>();
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
-      if (hasConflict(entries[i], entries[j])) {
+      if (overlaps(entries[i], entries[j])) {
         conflicts.add(entries[i].course.id);
         conflicts.add(entries[j].course.id);
+      }
+    }
+  }
+
+  // Compute column layout for overlapping entries per day
+  type LayoutInfo = { col: number; totalCols: number };
+  const layoutMap = new Map<string, LayoutInfo>(); // key: "courseId-index"
+
+  for (const day of WEEKDAYS) {
+    const dayEntries = byDay[day];
+    if (dayEntries.length === 0) continue;
+
+    // Find overlap groups using a sweep
+    const groups: number[][] = [];
+    const visited = new Set<number>();
+
+    for (let i = 0; i < dayEntries.length; i++) {
+      if (visited.has(i)) continue;
+      const group = [i];
+      visited.add(i);
+      // Find all entries that transitively overlap with this one
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let j = 0; j < dayEntries.length; j++) {
+          if (visited.has(j)) continue;
+          for (const gi of group) {
+            if (overlaps(dayEntries[gi], dayEntries[j])) {
+              group.push(j);
+              visited.add(j);
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+      groups.push(group);
+    }
+
+    // Assign columns within each group
+    for (const group of groups) {
+      if (group.length === 1) {
+        const idx = group[0];
+        const entry = dayEntries[idx];
+        const key = `${entry.course.id}-${entries.indexOf(entry)}`;
+        layoutMap.set(key, { col: 0, totalCols: 1 });
+        continue;
+      }
+      // Sort by start time, then by end time descending
+      group.sort((a, b) => {
+        const aStart = timeToMinutes(dayEntries[a].slot.start);
+        const bStart = timeToMinutes(dayEntries[b].slot.start);
+        if (aStart !== bStart) return aStart - bStart;
+        return timeToMinutes(dayEntries[b].slot.end) - timeToMinutes(dayEntries[a].slot.end);
+      });
+      const cols: number[] = new Array(group.length).fill(-1);
+      for (let gi = 0; gi < group.length; gi++) {
+        const usedCols = new Set<number>();
+        for (let gj = 0; gj < gi; gj++) {
+          if (overlaps(dayEntries[group[gi]], dayEntries[group[gj]])) {
+            usedCols.add(cols[gj]);
+          }
+        }
+        let col = 0;
+        while (usedCols.has(col)) col++;
+        cols[gi] = col;
+      }
+      const totalCols = Math.max(...cols) + 1;
+      for (let gi = 0; gi < group.length; gi++) {
+        const idx = group[gi];
+        const entry = dayEntries[idx];
+        const key = `${entry.course.id}-${entries.indexOf(entry)}`;
+        layoutMap.set(key, { col: cols[gi], totalCols });
       }
     }
   }
@@ -290,21 +363,30 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                     />
                   ))}
 
-                  {byDay[day].map((entry, i) => {
+                  {byDay[day].map((entry) => {
                     const startMin = timeToMinutes(entry.slot.start);
                     const endMin = timeToMinutes(entry.slot.end);
                     const top = minutesToY(startMin);
                     const height = minutesToY(endMin) - top;
                     const colors = CATEGORY_COLORS[entry.course.category] ?? CATEGORY_COLORS['other'];
                     const isConflict = conflicts.has(entry.course.id);
+                    const entryKey = `${entry.course.id}-${entries.indexOf(entry)}`;
+                    const layout = layoutMap.get(entryKey) ?? { col: 0, totalCols: 1 };
+                    const widthPct = 100 / layout.totalCols;
+                    const leftPct = layout.col * widthPct;
 
                     return (
                       <button
-                        key={`${entry.course.id}-${i}`}
-                        className={`absolute left-0.5 right-0.5 rounded border-2 px-1 py-0.5 text-left transition-shadow hover:shadow-md overflow-hidden ${colors} ${
+                        key={entryKey}
+                        className={`absolute rounded border-2 px-1 py-0.5 text-left transition-shadow hover:shadow-md overflow-hidden ${colors} ${
                           entry.isExtra ? 'opacity-70 border-dashed' : ''
                         } ${isConflict ? 'ring-2 ring-red-400' : ''}`}
-                        style={{ top, height }}
+                        style={{
+                          top,
+                          height,
+                          left: `calc(${leftPct}% + 2px)`,
+                          width: `calc(${widthPct}% - 4px)`,
+                        }}
                         onClick={() => onCourseClick(entry.course)}
                         title={`${entry.course.name}\n${entry.slot.start}–${entry.slot.end}${entry.slot.room ? `\n${entry.slot.room}` : ''}${entry.isExtra ? '\n(preview)' : ''}`}
                       >
