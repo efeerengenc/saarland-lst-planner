@@ -346,20 +346,20 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                 </div>
 
                 <div
-                  className="relative rounded-lg border border-gray-200 bg-white"
+                  className="relative rounded-lg border border-gray-100 bg-white"
                   style={{ height: gridHeight }}
                 >
                   {timeLabels.map((label, i) => (
                     <div
                       key={label}
-                      className="absolute left-0 right-0 border-t border-gray-100"
+                      className="absolute left-0 right-0 border-t border-dashed border-gray-200/60"
                       style={{ top: i * SLOT_HEIGHT * 2 }}
                     />
                   ))}
                   {timeLabels.map((label, i) => (
                     <div
                       key={`${label}-half`}
-                      className="absolute left-0 right-0 border-t border-gray-50"
+                      className="absolute left-0 right-0 border-t border-dotted border-gray-100/50"
                       style={{ top: i * SLOT_HEIGHT * 2 + SLOT_HEIGHT }}
                     />
                   ))}

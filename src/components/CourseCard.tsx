@@ -221,6 +221,15 @@ export function CatalogCourseCard({
       {course.instructor && (
         <div className="mt-0.5 text-xs opacity-70">{course.instructor}</div>
       )}
+      {course.schedule && course.schedule.length > 0 && (
+        <div className="mt-0.5 space-y-0.5">
+          {course.schedule.map((slot, i) => (
+            <div key={i} className="text-xs opacity-60">
+              {slot.day} {slot.start}–{slot.end}{slot.room ? ` · ${slot.room}` : ''}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mt-1 flex gap-1">
         {course.offeredIn.map(s => (
           <span key={s} className="rounded bg-white/40 px-1 py-0.5 text-xs">{s}</span>

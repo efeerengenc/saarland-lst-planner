@@ -150,6 +150,14 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
+      {/* Disclaimer banner */}
+      <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-3 py-1.5 text-xs text-amber-800 text-center">
+        <strong>Unofficial tool</strong> — vibe coded, not affiliated with Saarland University. Verify everything with{' '}
+        <a href="https://www.lsf.uni-saarland.de" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">official sources</a>.
+        {' '}Suggestions or bugs?{' '}
+        <a href="mailto:efeerengenc@gmail.com" className="underline hover:text-amber-900">efeerengenc@gmail.com</a>
+      </div>
+
       {/* Top bar */}
       <header className="flex shrink-0 items-center justify-between border-b bg-white px-2 py-2 sm:px-4 shadow-sm gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -341,9 +349,9 @@ export default function App() {
 
                 <button
                   onClick={addSemester}
-                  className="flex w-24 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-400 hover:border-gray-400 hover:text-gray-500"
+                  className="flex w-full md:w-32 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-blue-300 py-3 md:py-0 text-sm font-medium text-blue-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-colors"
                 >
-                  + Semester
+                  + Add Semester
                 </button>
               </div>
 
