@@ -54,6 +54,7 @@ export default function App() {
   const [activeDragCourse, setActiveDragCourse] = useState<Course | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -141,18 +142,28 @@ export default function App() {
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       {/* Top bar */}
-      <header className="flex shrink-0 items-center justify-between border-b bg-white px-4 py-2 shadow-sm">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-gray-800">LST Study Planner</h1>
-          <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+      <header className="flex shrink-0 items-center justify-between border-b bg-white px-2 py-2 sm:px-4 shadow-sm gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100"
+            title="Open course catalog"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="text-base sm:text-lg font-bold text-gray-800 truncate">LST Study Planner</h1>
+          <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
             Saarland University
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
           <select
             value={activePlanId}
             onChange={(e) => setActivePlanId(e.target.value)}
-            className="rounded border px-2 py-1 text-sm"
+            className="rounded border px-2 py-1 text-sm max-w-[140px] sm:max-w-none"
           >
             {plans.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
@@ -160,9 +171,10 @@ export default function App() {
           </select>
           <button
             onClick={() => createNewPlan(`Plan ${plans.length + 1}`)}
-            className="rounded bg-blue-500 px-3 py-1 text-sm font-medium text-white hover:bg-blue-600"
+            className="rounded bg-blue-500 px-2 sm:px-3 py-1 text-sm font-medium text-white hover:bg-blue-600"
           >
-            + New Plan
+            <span className="sm:hidden">+</span>
+            <span className="hidden sm:inline">+ New Plan</span>
           </button>
           {plans.length > 1 && (
             <button
@@ -172,20 +184,20 @@ export default function App() {
               Delete
             </button>
           )}
-          <div className="ml-2 h-4 w-px bg-gray-300" />
+          <div className="hidden sm:block ml-1 h-4 w-px bg-gray-300" />
           <button
             onClick={handleExport}
             className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
             title="Export all plans as JSON"
           >
-            ↓ Export
+            ↓<span className="hidden sm:inline"> Export</span>
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
             title="Import plans from JSON file"
           >
-            ↑ Import
+            ↑<span className="hidden sm:inline"> Import</span>
           </button>
           <input
             ref={fileInputRef}
@@ -252,10 +264,38 @@ export default function App() {
         </div>
       </div>
 
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b px-3 py-2">
+              <span className="text-sm font-bold text-gray-700">Course Catalog</span>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="h-[calc(100%-41px)] overflow-hidden">
+              <CourseCatalog
+                placedCourseIds={placedCourseIds}
+                customCourses={activePlan.customCourses}
+                onCourseClick={(course) => { setSelectedCourse(course); setSidebarOpen(false); }}
+                onAddCustomCourse={addCustomCourse}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-72 shrink-0 overflow-hidden border-r bg-white">
+        {/* Sidebar — desktop only */}
+        <div className="hidden md:block w-72 shrink-0 overflow-hidden border-r bg-white">
           <CourseCatalog
             placedCourseIds={placedCourseIds}
             customCourses={activePlan.customCourses}
@@ -272,7 +312,7 @@ export default function App() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              <div className="flex flex-1 gap-3 overflow-x-auto p-4">
+              <div className="flex flex-1 flex-col md:flex-row gap-3 overflow-x-auto p-3 sm:p-4">
                 {activePlan.semesters.map((sem) => (
                   <SemesterColumn
                     key={sem.id}
@@ -345,7 +385,7 @@ export default function App() {
       {/* Import confirmation dialog */}
       {importPending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-96 rounded-xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-96 mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
             <h3 className="text-lg font-bold text-gray-800">Import Plans</h3>
             <p className="mt-2 text-sm text-gray-600">
               How would you like to import? <strong>Replace</strong> will overwrite all existing plans.{' '}

@@ -47,7 +47,7 @@ export function SemesterColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-64 shrink-0 flex-col rounded-xl border-2 bg-white transition-colors ${
+      className={`flex w-full md:w-64 shrink-0 flex-col rounded-xl border-2 bg-white transition-colors ${
         isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
       }`}
     >

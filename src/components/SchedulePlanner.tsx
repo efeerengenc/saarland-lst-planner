@@ -137,7 +137,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b bg-white px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 border-b bg-white px-3 sm:px-4 py-2">
         <h2 className="text-sm font-bold text-gray-700">Weekly Schedule</h2>
         <select
           value={selectedSemId}
@@ -187,10 +187,10 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Course picker sidebar */}
         {showCoursePicker && (
-          <div className="w-60 shrink-0 overflow-y-auto border-r bg-gray-50 p-2">
+          <div className="w-full md:w-60 shrink-0 overflow-y-auto border-b md:border-b-0 md:border-r bg-gray-50 p-2 max-h-48 md:max-h-none">
             <input
               type="text"
               value={pickerSearch}

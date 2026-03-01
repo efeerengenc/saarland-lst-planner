@@ -34,7 +34,7 @@ export function CourseDetail({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl"
+        className="w-full max-w-lg mx-3 max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
