@@ -8,6 +8,8 @@ interface CourseDetailProps {
   course: Course;
   onClose: () => void;
   onAddToSemester: (semesterId: string) => void;
+  onRemoveFromPlan?: () => void;
+  placedInSemester?: string;  // label of the semester the course is in
   semesters: { id: string; label: string }[];
   isPlaced: boolean;
   schedule?: TimeSlot[];
@@ -20,6 +22,8 @@ export function CourseDetail({
   course,
   onClose,
   onAddToSemester,
+  onRemoveFromPlan,
+  placedInSemester,
   semesters,
   isPlaced,
   schedule,
@@ -199,8 +203,16 @@ export function CourseDetail({
               </div>
             </div>
           )}
-          {isPlaced && (
-            <p className="text-xs italic text-gray-400">Already placed in your plan.</p>
+          {isPlaced && onRemoveFromPlan && (
+            <button
+              onClick={() => {
+                onRemoveFromPlan();
+                onClose();
+              }}
+              className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
+            >
+              Remove from {placedInSemester ?? 'plan'}
+            </button>
           )}
         </div>
       </div>

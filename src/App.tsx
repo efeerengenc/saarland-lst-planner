@@ -515,6 +515,15 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
           course={selectedCourse}
           onClose={() => setSelectedCourse(null)}
           onAddToSemester={(semId) => addCourseToSemester(semId, selectedCourse.id)}
+          onRemoveFromPlan={(() => {
+            const sem = activePlan.semesters.find(s => s.courses.some(c => c.courseId === selectedCourse.id));
+            if (!sem) return undefined;
+            return () => {
+              removeCourseFromSemester(sem.id, selectedCourse.id);
+              setSelectedCourse(null);
+            };
+          })()}
+          placedInSemester={activePlan.semesters.find(s => s.courses.some(c => c.courseId === selectedCourse.id))?.label}
           semesters={activePlan.semesters.map(s => ({ id: s.id, label: s.label }))}
           isPlaced={placedCourseIds.has(selectedCourse.id)}
           schedule={getSchedule(selectedCourse.id, selectedCourse.schedule)}
