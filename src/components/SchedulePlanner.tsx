@@ -14,6 +14,7 @@ interface SchedulePlannerProps {
 }
 
 const WEEKDAYS: Weekday[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const WEEKDAY_SHORT: Record<Weekday, string> = { Mon: 'M', Tue: 'T', Wed: 'W', Thu: 'T', Fri: 'F' };
 
 const START_HOUR = 8;
 const END_HOUR = 20;
@@ -43,6 +44,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
   const [pickerSearch, setPickerSearch] = useState('');
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const [mobileDay, setMobileDay] = useState<Weekday>('Mon');
 
   // Close export menu on outside click
   useEffect(() => {
@@ -167,7 +169,6 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
       if (visited.has(i)) continue;
       const group = [i];
       visited.add(i);
-      // Find all entries that transitively overlap with this one
       let changed = true;
       while (changed) {
         changed = false;
@@ -195,7 +196,6 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
         layoutMap.set(key, { col: 0, totalCols: 1 });
         continue;
       }
-      // Sort by start time, then by end time descending
       group.sort((a, b) => {
         const aStart = timeToMinutes(dayEntries[a].slot.start);
         const bStart = timeToMinutes(dayEntries[b].slot.start);
@@ -224,18 +224,98 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
     }
   }
 
+  // Count events per day (for mobile day tab badges)
+  const countByDay: Record<string, number> = {};
+  for (const day of WEEKDAYS) {
+    countByDay[day] = byDay[day].length;
+  }
+
+  // Render a single day column (shared between mobile and desktop)
+  function renderDayColumn(day: Weekday, isMobile: boolean) {
+    return (
+      <div
+        className="relative rounded-lg border border-gray-100 bg-white"
+        style={{ height: gridHeight }}
+      >
+        {timeLabels.map((label, i) => (
+          <div
+            key={label}
+            className="absolute left-0 right-0 border-t border-dashed border-gray-200/60"
+            style={{ top: i * SLOT_HEIGHT * 2 }}
+          />
+        ))}
+        {timeLabels.map((label, i) => (
+          <div
+            key={`${label}-half`}
+            className="absolute left-0 right-0 border-t border-dotted border-gray-100/50"
+            style={{ top: i * SLOT_HEIGHT * 2 + SLOT_HEIGHT }}
+          />
+        ))}
+
+        {byDay[day].map((entry) => {
+          const startMin = timeToMinutes(entry.slot.start);
+          const endMin = timeToMinutes(entry.slot.end);
+          const top = minutesToY(startMin);
+          const height = minutesToY(endMin) - top;
+          const colors = program.categoryColors[entry.course.category] ?? program.categoryColors['other'] ?? 'bg-slate-100 border-slate-300 text-slate-800';
+          const isConflict = conflicts.has(entry.course.id);
+          const entryKey = `${entry.course.id}-${entries.indexOf(entry)}`;
+          const layout = layoutMap.get(entryKey) ?? { col: 0, totalCols: 1 };
+          const widthPct = 100 / layout.totalCols;
+          const leftPct = layout.col * widthPct;
+
+          return (
+            <button
+              key={entryKey}
+              className={`absolute rounded border-2 px-1 py-0.5 text-left transition-shadow hover:shadow-md overflow-hidden ${colors} ${
+                entry.isExtra ? 'opacity-70 border-dashed' : ''
+              } ${isConflict ? 'ring-2 ring-red-400' : ''}`}
+              style={{
+                top,
+                height,
+                left: `calc(${leftPct}% + 2px)`,
+                width: `calc(${widthPct}% - 4px)`,
+              }}
+              onClick={() => onCourseClick(entry.course)}
+              title={`${entry.course.name}\n${entry.slot.start}–${entry.slot.end}${entry.slot.room ? `\n${entry.slot.room}` : ''}${entry.isExtra ? '\n(preview)' : ''}`}
+            >
+              <div className={`font-medium leading-tight truncate ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                {entry.course.name}
+              </div>
+              {height > 30 && (
+                <div className="text-xs opacity-70 truncate">
+                  {entry.slot.start}–{entry.slot.end}
+                </div>
+              )}
+              {height > 48 && entry.slot.room && (
+                <div className="text-xs opacity-60 truncate">
+                  {entry.slot.room}
+                </div>
+              )}
+              {height > 48 && entry.course.instructor && (
+                <div className="text-xs opacity-60 truncate">
+                  {entry.course.instructor}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 border-b bg-white px-3 sm:px-4 py-2">
-        <h2 className="text-sm font-bold text-gray-700">Weekly Schedule</h2>
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 border-b bg-white px-2 sm:px-4 py-2">
+        <h2 className="hidden sm:block text-sm font-bold text-gray-700">Weekly Schedule</h2>
         <select
           value={selectedSemId}
           onChange={(e) => {
             setSelectedSemId(e.target.value);
             if (e.target.value === BROWSE_MODE_ID) setShowCoursePicker(true);
           }}
-          className="rounded border px-2 py-1 text-sm"
+          className="rounded border px-1.5 sm:px-2 py-1 text-xs sm:text-sm min-w-0"
         >
           {semesters.map(s => (
             <option key={s.id} value={s.id}>{s.label}</option>
@@ -244,21 +324,22 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
         </select>
         <button
           onClick={() => setShowCoursePicker(!showCoursePicker)}
-          className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+          className={`rounded px-2 sm:px-3 py-1 text-xs font-medium transition-colors ${
             showCoursePicker
               ? 'bg-indigo-100 text-indigo-700'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          {showCoursePicker ? 'Hide' : '+ Add'} Courses
+          {showCoursePicker ? 'Hide' : '+'}<span className="hidden sm:inline"> {showCoursePicker ? '' : 'Add'} Courses</span>
         </button>
         {conflicts.size > 0 && (
-          <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-            Time conflict detected
+          <span className="rounded bg-red-100 px-1.5 sm:px-2 py-0.5 text-xs font-medium text-red-700">
+            <span className="hidden sm:inline">Time conflict detected</span>
+            <span className="sm:hidden">Conflict</span>
           </span>
         )}
         {extraCourseIds.size > 0 && (
-          <span className="text-xs text-gray-400">
+          <span className="hidden sm:inline text-xs text-gray-400">
             {extraCourseIds.size} {isBrowseMode ? '' : 'extra '}course{extraCourseIds.size > 1 ? 's' : ''} {isBrowseMode ? 'selected' : 'shown'}
           </span>
         )}
@@ -268,7 +349,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
             disabled={entries.length === 0}
             className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            📤 Export ▾
+            📤<span className="hidden sm:inline"> Export</span> ▾
           </button>
           {showExportMenu && entries.length > 0 && (
             <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
@@ -281,7 +362,6 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                   const count = openInGoogleCalendar(entries);
                   setShowExportMenu(false);
                   if (count > 1) {
-                    // Small toast-like feedback (alert for now)
                     setTimeout(() => alert(`Opened ${count} events in Google Calendar. Click "Save" on each tab to add them.`), 300);
                   }
                 }}
@@ -410,8 +490,66 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
           </div>
         )}
 
-        {/* Calendar grid */}
-        <div className="flex-1 overflow-auto p-4">
+        {/* ═══ MOBILE: single-day view with day tabs ═══ */}
+        <div className="flex-1 overflow-auto md:hidden">
+          {/* Day tabs */}
+          <div className="sticky top-0 z-10 flex border-b bg-white">
+            {WEEKDAYS.map(day => (
+              <button
+                key={day}
+                onClick={() => setMobileDay(day)}
+                className={`flex-1 py-2 text-center text-xs font-bold transition-colors relative ${
+                  mobileDay === day
+                    ? 'text-indigo-700 border-b-2 border-indigo-500 bg-indigo-50/50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="sm:hidden">{WEEKDAY_SHORT[day]}</span>
+                <span className="hidden sm:inline">{day}</span>
+                {countByDay[day] > 0 && (
+                  <span className={`ml-0.5 inline-flex items-center justify-center rounded-full text-xs min-w-[16px] h-4 px-1 ${
+                    mobileDay === day
+                      ? 'bg-indigo-200 text-indigo-800'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {countByDay[day]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Single day grid */}
+          <div className="flex p-2">
+            {/* Time column */}
+            <div className="w-10 shrink-0 pt-0">
+              {timeLabels.map(label => (
+                <div
+                  key={label}
+                  className="text-right text-[10px] text-gray-400 pr-1"
+                  style={{ height: SLOT_HEIGHT * 2 }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            {/* Day column — full width */}
+            <div className="flex-1">
+              {renderDayColumn(mobileDay, true)}
+            </div>
+          </div>
+
+          {/* Empty state for mobile */}
+          {byDay[mobileDay].length === 0 && (
+            <div className="text-center text-xs text-gray-400 py-8">
+              No classes on {mobileDay}
+            </div>
+          )}
+        </div>
+
+        {/* ═══ DESKTOP: full week grid ═══ */}
+        <div className="hidden md:block flex-1 overflow-auto p-4">
           <div className="flex min-w-[700px]">
             {/* Time column */}
             <div className="w-14 shrink-0 pt-8">
@@ -432,75 +570,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                 <div className="mb-1 text-center text-xs font-bold text-gray-600 h-7 flex items-center justify-center">
                   {day}
                 </div>
-
-                <div
-                  className="relative rounded-lg border border-gray-100 bg-white"
-                  style={{ height: gridHeight }}
-                >
-                  {timeLabels.map((label, i) => (
-                    <div
-                      key={label}
-                      className="absolute left-0 right-0 border-t border-dashed border-gray-200/60"
-                      style={{ top: i * SLOT_HEIGHT * 2 }}
-                    />
-                  ))}
-                  {timeLabels.map((label, i) => (
-                    <div
-                      key={`${label}-half`}
-                      className="absolute left-0 right-0 border-t border-dotted border-gray-100/50"
-                      style={{ top: i * SLOT_HEIGHT * 2 + SLOT_HEIGHT }}
-                    />
-                  ))}
-
-                  {byDay[day].map((entry) => {
-                    const startMin = timeToMinutes(entry.slot.start);
-                    const endMin = timeToMinutes(entry.slot.end);
-                    const top = minutesToY(startMin);
-                    const height = minutesToY(endMin) - top;
-                    const colors = program.categoryColors[entry.course.category] ?? program.categoryColors['other'] ?? 'bg-slate-100 border-slate-300 text-slate-800';
-                    const isConflict = conflicts.has(entry.course.id);
-                    const entryKey = `${entry.course.id}-${entries.indexOf(entry)}`;
-                    const layout = layoutMap.get(entryKey) ?? { col: 0, totalCols: 1 };
-                    const widthPct = 100 / layout.totalCols;
-                    const leftPct = layout.col * widthPct;
-
-                    return (
-                      <button
-                        key={entryKey}
-                        className={`absolute rounded border-2 px-1 py-0.5 text-left transition-shadow hover:shadow-md overflow-hidden ${colors} ${
-                          entry.isExtra ? 'opacity-70 border-dashed' : ''
-                        } ${isConflict ? 'ring-2 ring-red-400' : ''}`}
-                        style={{
-                          top,
-                          height,
-                          left: `calc(${leftPct}% + 2px)`,
-                          width: `calc(${widthPct}% - 4px)`,
-                        }}
-                        onClick={() => onCourseClick(entry.course)}
-                        title={`${entry.course.name}\n${entry.slot.start}–${entry.slot.end}${entry.slot.room ? `\n${entry.slot.room}` : ''}${entry.isExtra ? '\n(preview)' : ''}`}
-                      >
-                        <div className="text-xs font-medium leading-tight truncate">
-                          {entry.course.name}
-                        </div>
-                        {height > 30 && (
-                          <div className="text-xs opacity-70 truncate">
-                            {entry.slot.start}–{entry.slot.end}
-                          </div>
-                        )}
-                        {height > 48 && entry.slot.room && (
-                          <div className="text-xs opacity-60 truncate">
-                            {entry.slot.room}
-                          </div>
-                        )}
-                        {height > 48 && entry.course.instructor && (
-                          <div className="text-xs opacity-60 truncate">
-                            {entry.course.instructor}
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                {renderDayColumn(day, false)}
               </div>
             ))}
           </div>
