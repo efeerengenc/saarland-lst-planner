@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Course, CourseCategory } from '../types';
-import { CATEGORY_LABELS, COURSES } from '../data/courses';
+import { useProgram } from '../context/ProgramContext';
 import { CatalogCourseCard } from './CourseCard';
 
 interface CourseCatalogProps {
@@ -10,29 +10,20 @@ interface CourseCatalogProps {
   onAddCustomCourse: (course: Course) => void;
 }
 
-const CATALOG_GROUPS: { label: string; categories: CourseCategory[] }[] = [
-  { label: 'Basic Lectures', categories: ['basic'] },
-  { label: 'Core Lectures', categories: ['core'] },
-  { label: 'Advanced Lectures', categories: ['advanced'] },
-  { label: 'Seminars & Projects', categories: ['seminar', 'software-project'] },
-  { label: 'CS / Cognitive Psychology', categories: ['cs-cogpsy'] },
-  { label: 'Final Module', categories: ['master-seminar', 'master-thesis'] },
-  { label: 'Other', categories: ['tutoring', 'internship'] },
-];
-
 export function CourseCatalog({
   placedCourseIds,
   customCourses,
   onCourseClick,
   onAddCustomCourse,
 }: CourseCatalogProps) {
+  const program = useProgram();
   const [search, setSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(CATALOG_GROUPS.map(g => g.label))
+    new Set(program.catalogGroups.map(g => g.label))
   );
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const allCourses = [...COURSES, ...customCourses];
+  const allCourses = [...program.courses, ...customCourses];
   const filtered = search
     ? allCourses.filter(
         c =>
@@ -82,7 +73,7 @@ export function CourseCatalog({
           </div>
         ) : (
           // Grouped view
-          CATALOG_GROUPS.map(group => {
+          program.catalogGroups.map(group => {
             const courses = filtered.filter(c => group.categories.includes(c.category));
             if (courses.length === 0) return null;
             const isExpanded = expandedGroups.has(group.label);
@@ -129,8 +120,8 @@ export function CourseCatalog({
         {/* Data source disclaimer */}
         <div className="mt-4 rounded-lg bg-gray-50 p-2.5 text-xs text-gray-400 leading-relaxed">
           <p className="font-medium text-gray-500 mb-1">Data sources</p>
-          <p>Lectures, seminars &amp; projects from <span className="font-medium">LSF Saarland University</span> (WiSe 25/26 + SoSe 26).</p>
-          <p className="mt-1 text-amber-500">CS / Cognitive Psychology courses are not from LSF and may be inaccurate. Use &ldquo;Add Custom Course&rdquo; to add or correct them.</p>
+          <p>Courses from <span className="font-medium">LSF Saarland University</span> (WiSe 25/26 + SoSe 26).</p>
+          <p className="mt-1 text-amber-500">Some courses may be inaccurate. Use &ldquo;Add Custom Course&rdquo; to add or correct them.</p>
         </div>
       </div>
 
@@ -154,9 +145,11 @@ function AddCustomCourseForm({
   onAdd: (course: Course) => void;
   onClose: () => void;
 }) {
+  const program = useProgram();
+  const defaultCategory = Object.keys(program.categoryLabels)[0] ?? 'other';
   const [name, setName] = useState('');
   const [cp, setCp] = useState(6);
-  const [category, setCategory] = useState<CourseCategory>('cs-cogpsy');
+  const [category, setCategory] = useState<CourseCategory>(defaultCategory);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,7 +158,6 @@ function AddCustomCourseForm({
       id: `custom-${crypto.randomUUID()}`,
       name: name.trim(),
       cp,
-      sws: 0,
       category,
       graded: true,
       offeredIn: ['WS', 'SS'],
@@ -209,7 +201,7 @@ function AddCustomCourseForm({
               onChange={(e) => setCategory(e.target.value as CourseCategory)}
               className="w-full rounded border px-2 py-1 text-sm"
             >
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              {Object.entries(program.categoryLabels).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>

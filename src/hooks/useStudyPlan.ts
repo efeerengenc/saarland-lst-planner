@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Course, StudyPlan } from '../types';
 
-const STORAGE_KEY = 'lst-planner-plans';
-const ACTIVE_PLAN_KEY = 'lst-planner-active';
-
 function createDefaultPlan(): StudyPlan {
   const now = Date.now();
   return {
@@ -21,9 +18,9 @@ function createDefaultPlan(): StudyPlan {
   };
 }
 
-function loadPlans(): StudyPlan[] {
+function loadPlans(storageKey: string): StudyPlan[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) return JSON.parse(raw);
   } catch {
     // corrupted data
@@ -31,32 +28,35 @@ function loadPlans(): StudyPlan[] {
   return [];
 }
 
-function savePlans(plans: StudyPlan[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
+function savePlans(storageKey: string, plans: StudyPlan[]) {
+  localStorage.setItem(storageKey, JSON.stringify(plans));
 }
 
-function loadActivePlanId(): string | null {
-  return localStorage.getItem(ACTIVE_PLAN_KEY);
+function loadActivePlanId(activeKey: string): string | null {
+  return localStorage.getItem(activeKey);
 }
 
-function saveActivePlanId(id: string) {
-  localStorage.setItem(ACTIVE_PLAN_KEY, id);
+function saveActivePlanId(activeKey: string, id: string) {
+  localStorage.setItem(activeKey, id);
 }
 
-export function useStudyPlan() {
+export function useStudyPlan(storagePrefix: string) {
+  const STORAGE_KEY = `${storagePrefix}-plans`;
+  const ACTIVE_PLAN_KEY = `${storagePrefix}-active`;
+
   const [plans, setPlans] = useState<StudyPlan[]>(() => {
-    const loaded = loadPlans();
+    const loaded = loadPlans(STORAGE_KEY);
     if (loaded.length === 0) {
       const def = createDefaultPlan();
-      savePlans([def]);
-      saveActivePlanId(def.id);
+      savePlans(STORAGE_KEY, [def]);
+      saveActivePlanId(ACTIVE_PLAN_KEY, def.id);
       return [def];
     }
     return loaded;
   });
 
   const [activePlanId, setActivePlanId] = useState<string>(() => {
-    const stored = loadActivePlanId();
+    const stored = loadActivePlanId(ACTIVE_PLAN_KEY);
     if (stored && plans.some(p => p.id === stored)) return stored;
     return plans[0]?.id ?? '';
   });
@@ -65,12 +65,12 @@ export function useStudyPlan() {
 
   // Persist on change
   useEffect(() => {
-    savePlans(plans);
-  }, [plans]);
+    savePlans(STORAGE_KEY, plans);
+  }, [STORAGE_KEY, plans]);
 
   useEffect(() => {
-    saveActivePlanId(activePlanId);
-  }, [activePlanId]);
+    saveActivePlanId(ACTIVE_PLAN_KEY, activePlanId);
+  }, [ACTIVE_PLAN_KEY, activePlanId]);
 
   const updatePlan = useCallback((updater: (plan: StudyPlan) => StudyPlan) => {
     setPlans(prev =>
@@ -108,7 +108,6 @@ export function useStudyPlan() {
     courseId: string
   ) => {
     updatePlan(plan => {
-      // Find the placed course to preserve its data (grade, etc.)
       const fromSem = plan.semesters.find(s => s.id === fromSemesterId);
       const placedCourse = fromSem?.courses.find(c => c.courseId === courseId);
       if (!placedCourse) return plan;
@@ -117,7 +116,6 @@ export function useStudyPlan() {
         ...plan,
         semesters: plan.semesters.map(sem => {
           if (sem.id === fromSemesterId) {
-            // Remove from source (only first instance)
             const idx = sem.courses.findIndex(c => c.courseId === courseId);
             const newCourses = [...sem.courses];
             if (idx >= 0) newCourses.splice(idx, 1);
@@ -209,17 +207,17 @@ export function useStudyPlan() {
       const next = prev.filter(p => p.id !== planId);
       if (next.length === 0) {
         const def = createDefaultPlan();
-        saveActivePlanId(def.id);
+        saveActivePlanId(ACTIVE_PLAN_KEY, def.id);
         setActivePlanId(def.id);
         return [def];
       }
       if (planId === activePlanId) {
-        saveActivePlanId(next[0].id);
+        saveActivePlanId(ACTIVE_PLAN_KEY, next[0].id);
         setActivePlanId(next[0].id);
       }
       return next;
     });
-  }, [activePlanId]);
+  }, [ACTIVE_PLAN_KEY, activePlanId]);
 
   const renamePlan = useCallback((name: string) => {
     updatePlan(plan => ({ ...plan, name }));

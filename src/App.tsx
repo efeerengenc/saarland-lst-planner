@@ -11,7 +11,8 @@ import type { Course } from './types';
 import { useStudyPlan } from './hooks/useStudyPlan';
 import { useGraduationProgress } from './hooks/useGraduationProgress';
 import { useScheduleOverrides } from './hooks/useScheduleOverrides';
-import { getCourseById } from './data/courses';
+import { PROGRAMS, getProgram, DEFAULT_PROGRAM_ID } from './data/programs';
+import { ProgramProvider } from './context/ProgramContext';
 import { CourseCatalog } from './components/CourseCatalog';
 import { SemesterColumn } from './components/SemesterColumn';
 import { ProgressTracker } from './components/ProgressTracker';
@@ -22,7 +23,24 @@ import { createExportData, downloadJSON, parseImportFile, remapPlanIds } from '.
 
 type ViewMode = 'planner' | 'schedule';
 
+const PROGRAM_STORAGE_KEY = 'study-planner-program';
+
 export default function App() {
+  // Program selection (persisted to localStorage)
+  const [programId, setProgramId] = useState<string>(() => {
+    return localStorage.getItem(PROGRAM_STORAGE_KEY) ?? DEFAULT_PROGRAM_ID;
+  });
+  const program = getProgram(programId);
+
+  function handleProgramChange(newId: string) {
+    setProgramId(newId);
+    localStorage.setItem(PROGRAM_STORAGE_KEY, newId);
+    // Reset transient state when switching programs
+    setSelectedCourse(null);
+    setActiveDragCourse(null);
+    setViewMode('planner');
+  }
+
   const {
     plans,
     activePlan,
@@ -42,10 +60,10 @@ export default function App() {
     renamePlan,
     replacePlans,
     mergePlans,
-  } = useStudyPlan();
+  } = useStudyPlan(program.storagePrefix);
 
-  const progress = useGraduationProgress(activePlan.semesters, activePlan.customCourses);
-  const { overrides, getSchedule, setSchedule, clearSchedule, replaceAll, mergeAll } = useScheduleOverrides();
+  const progress = useGraduationProgress(activePlan.semesters, activePlan.customCourses, program);
+  const { overrides, getSchedule, setSchedule, clearSchedule, replaceAll, mergeAll } = useScheduleOverrides(program.storagePrefix);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPending, setImportPending] = useState<string | null>(null);
@@ -64,7 +82,7 @@ export default function App() {
   function handleDragStart(event: DragStartEvent) {
     const courseId = event.active.data.current?.courseId;
     if (courseId) {
-      const course = getCourseById(courseId) ?? activePlan.customCourses.find(c => c.id === courseId);
+      const course = program.courses.find(c => c.id === courseId) ?? activePlan.customCourses.find(c => c.id === courseId);
       setActiveDragCourse(course ?? null);
     }
   }
@@ -107,7 +125,7 @@ export default function App() {
 
   function handleExport() {
     const data = createExportData(plans, overrides);
-    downloadJSON(data, 'lst-study-plans.json');
+    downloadJSON(data, `${program.storagePrefix}-study-plans.json`);
   }
 
   function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -126,7 +144,6 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-    // Reset input so re-selecting same file triggers change
     e.target.value = '';
   }
 
@@ -149,303 +166,316 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
-      {/* Disclaimer banner */}
-      <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-3 py-1.5 text-xs text-amber-800 text-center">
-        <strong>Unofficial tool</strong> — vibe coded, not affiliated with Saarland University. Verify everything with{' '}
-        <a href="https://www.lsf.uni-saarland.de" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">official sources</a>.
-        {' '}Suggestions or bugs?{' '}
-        <a href="mailto:efeerengenc@gmail.com" className="underline hover:text-amber-900">efeerengenc@gmail.com</a>
-      </div>
-
-      {/* Top bar */}
-      <header className="flex shrink-0 items-center justify-between border-b bg-white px-2 py-2 sm:px-4 shadow-sm gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100"
-            title="Open course catalog"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <h1 className="text-base sm:text-lg font-bold text-gray-800 truncate">LST Study Planner</h1>
-          <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
-            Saarland University
-          </span>
+    <ProgramProvider value={program}>
+      <div className="flex h-screen flex-col bg-gray-50">
+        {/* Disclaimer banner */}
+        <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-3 py-1.5 text-xs text-amber-800 text-center">
+          <strong>Unofficial tool</strong> — vibe coded, not affiliated with Saarland University. Verify everything with{' '}
+          <a href="https://www.lsf.uni-saarland.de" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">official sources</a>.
+          {' '}Suggestions or bugs?{' '}
+          <a href="mailto:efeerengenc@gmail.com" className="underline hover:text-amber-900">efeerengenc@gmail.com</a>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
-          <select
-            value={activePlanId}
-            onChange={(e) => setActivePlanId(e.target.value)}
-            className="rounded border px-2 py-1 text-sm max-w-[140px] sm:max-w-none"
-          >
-            {plans.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => createNewPlan(`Plan ${plans.length + 1}`)}
-            className="rounded bg-blue-500 px-2 sm:px-3 py-1 text-sm font-medium text-white hover:bg-blue-600"
-          >
-            <span className="sm:hidden">+</span>
-            <span className="hidden sm:inline">+ New Plan</span>
-          </button>
-          {plans.length > 1 && (
+
+        {/* Top bar */}
+        <header className="flex shrink-0 items-center justify-between border-b bg-white px-2 py-2 sm:px-4 shadow-sm gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Mobile hamburger */}
             <button
-              onClick={() => deletePlan(activePlanId)}
-              className="rounded border border-red-200 px-2 py-1 text-sm text-red-500 hover:bg-red-50"
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100"
+              title="Open course catalog"
             >
-              Delete
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-          )}
-          <div className="hidden sm:block ml-1 h-4 w-px bg-gray-300" />
-          <button
-            onClick={handleExport}
-            className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
-            title="Export all plans as JSON"
-          >
-            ↓<span className="hidden sm:inline"> Export</span>
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
-            title="Import plans from JSON file"
-          >
-            ↑<span className="hidden sm:inline"> Import</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-        </div>
-      </header>
 
-      {/* Plan name + view tabs */}
-      <div className="flex shrink-0 items-center justify-between border-b bg-white px-4 py-1.5">
-        <div className="flex items-center gap-2">
-          {isEditingName ? (
-            <input
-              type="text"
-              defaultValue={activePlan.name}
-              autoFocus
-              onBlur={(e) => {
-                renamePlan(e.target.value || 'Untitled Plan');
-                setIsEditingName(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  renamePlan((e.target as HTMLInputElement).value || 'Untitled Plan');
-                  setIsEditingName(false);
-                }
-              }}
-              className="rounded border px-2 py-0.5 text-sm"
-            />
-          ) : (
+            {/* Program selector */}
+            <select
+              value={programId}
+              onChange={(e) => handleProgramChange(e.target.value)}
+              className="rounded border px-2 py-1 text-sm font-bold text-gray-800 bg-transparent cursor-pointer"
+            >
+              {PROGRAMS.map(p => (
+                <option key={p.id} value={p.id}>{p.shortName} Study Planner</option>
+              ))}
+            </select>
+
+            <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+              Saarland University
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <select
+              value={activePlanId}
+              onChange={(e) => setActivePlanId(e.target.value)}
+              className="rounded border px-2 py-1 text-sm max-w-[140px] sm:max-w-none"
+            >
+              {plans.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
             <button
-              onClick={() => setIsEditingName(true)}
-              className="text-sm text-gray-500 hover:text-gray-700"
-              title="Click to rename"
+              onClick={() => createNewPlan(`Plan ${plans.length + 1}`)}
+              className="rounded bg-blue-500 px-2 sm:px-3 py-1 text-sm font-medium text-white hover:bg-blue-600"
             >
-              {activePlan.name} &#9998;
+              <span className="sm:hidden">+</span>
+              <span className="hidden sm:inline">+ New Plan</span>
             </button>
-          )}
-        </div>
-
-        <div className="flex rounded-lg border bg-gray-100 p-0.5">
-          <button
-            onClick={() => setViewMode('planner')}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-              viewMode === 'planner'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Study Plan
-          </button>
-          <button
-            onClick={() => setViewMode('schedule')}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-              viewMode === 'schedule'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Weekly Schedule
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-3 py-2">
-              <span className="text-sm font-bold text-gray-700">Course Catalog</span>
+            {plans.length > 1 && (
               <button
-                onClick={() => setSidebarOpen(false)}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                onClick={() => deletePlan(activePlanId)}
+                className="rounded border border-red-200 px-2 py-1 text-sm text-red-500 hover:bg-red-50"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Delete
               </button>
+            )}
+            <div className="hidden sm:block ml-1 h-4 w-px bg-gray-300" />
+            <button
+              onClick={handleExport}
+              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
+              title="Export all plans as JSON"
+            >
+              ↓<span className="hidden sm:inline"> Export</span>
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
+              title="Import plans from JSON file"
+            >
+              ↑<span className="hidden sm:inline"> Import</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+          </div>
+        </header>
+
+        {/* Plan name + view tabs */}
+        <div className="flex shrink-0 items-center justify-between border-b bg-white px-4 py-1.5">
+          <div className="flex items-center gap-2">
+            {isEditingName ? (
+              <input
+                type="text"
+                defaultValue={activePlan.name}
+                autoFocus
+                onBlur={(e) => {
+                  renamePlan(e.target.value || 'Untitled Plan');
+                  setIsEditingName(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    renamePlan((e.target as HTMLInputElement).value || 'Untitled Plan');
+                    setIsEditingName(false);
+                  }
+                }}
+                className="rounded border px-2 py-0.5 text-sm"
+              />
+            ) : (
+              <button
+                onClick={() => setIsEditingName(true)}
+                className="text-sm text-gray-500 hover:text-gray-700"
+                title="Click to rename"
+              >
+                {activePlan.name} &#9998;
+              </button>
+            )}
+          </div>
+
+          <div className="flex rounded-lg border bg-gray-100 p-0.5">
+            <button
+              onClick={() => setViewMode('planner')}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                viewMode === 'planner'
+                  ? 'bg-white text-gray-800 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Study Plan
+            </button>
+            <button
+              onClick={() => setViewMode('schedule')}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                viewMode === 'schedule'
+                  ? 'bg-white text-gray-800 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Weekly Schedule
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
+            <div className="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b px-3 py-2">
+                <span className="text-sm font-bold text-gray-700">Course Catalog</span>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="h-[calc(100%-41px)] overflow-hidden">
+                <CourseCatalog
+                  placedCourseIds={placedCourseIds}
+                  customCourses={activePlan.customCourses}
+                  onCourseClick={(course) => { setSelectedCourse(course); setSidebarOpen(false); }}
+                  onAddCustomCourse={addCustomCourse}
+                />
+              </div>
             </div>
-            <div className="h-[calc(100%-41px)] overflow-hidden">
+          </div>
+        )}
+
+        {/* Main content */}
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar — desktop only */}
+            <div className="hidden md:block w-72 shrink-0 overflow-hidden border-r bg-white">
               <CourseCatalog
                 placedCourseIds={placedCourseIds}
                 customCourses={activePlan.customCourses}
-                onCourseClick={(course) => { setSelectedCourse(course); setSidebarOpen(false); }}
+                onCourseClick={setSelectedCourse}
                 onAddCustomCourse={addCustomCourse}
               />
             </div>
+
+            {/* Center content */}
+            {viewMode === 'planner' ? (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex flex-1 flex-col md:flex-row gap-3 overflow-x-auto p-3 sm:p-4">
+                  {activePlan.semesters.map((sem) => (
+                    <SemesterColumn
+                      key={sem.id}
+                      semester={sem}
+                      customCourses={activePlan.customCourses}
+                      onRemoveCourse={(courseId) => removeCourseFromSemester(sem.id, courseId)}
+                      onCourseClick={setSelectedCourse}
+                      onGradeChange={(courseId, grade) => updateCourseGrade(sem.id, courseId, grade)}
+                      onCpChange={(courseId, cp) => updateCourseCp(sem.id, courseId, cp)}
+                      onRemoveSemester={
+                        activePlan.semesters.length > 1 && sem.courses.length === 0
+                          ? () => removeSemester(sem.id)
+                          : undefined
+                      }
+                    />
+                  ))}
+
+                  <button
+                    onClick={addSemester}
+                    className="flex w-full md:w-32 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-blue-300 py-3 md:py-0 text-sm font-medium text-blue-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-colors"
+                  >
+                    + Add Semester
+                  </button>
+                </div>
+
+                <div className="shrink-0 border-t p-4 max-h-64 overflow-y-auto">
+                  <ProgressTracker progress={progress} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-hidden">
+                <SchedulePlanner
+                  semesters={activePlan.semesters}
+                  customCourses={activePlan.customCourses}
+                  onCourseClick={setSelectedCourse}
+                  scheduleOverrides={overrides}
+                  selectedSemId={scheduleSemId}
+                  onSelectedSemIdChange={setScheduleSemId}
+                />
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Main content */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar — desktop only */}
-          <div className="hidden md:block w-72 shrink-0 overflow-hidden border-r bg-white">
-            <CourseCatalog
-              placedCourseIds={placedCourseIds}
-              customCourses={activePlan.customCourses}
-              onCourseClick={setSelectedCourse}
-              onAddCustomCourse={addCustomCourse}
-            />
-          </div>
+          <DragOverlay>
+            {activeDragCourse && (
+              <div className="w-56">
+                <CourseCard
+                  course={activeDragCourse}
+                  draggableId="overlay"
+                  isDragOverlay
+                />
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
 
-          {/* Center content */}
-          {viewMode === 'planner' ? (
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex flex-1 flex-col md:flex-row gap-3 overflow-x-auto p-3 sm:p-4">
-                {activePlan.semesters.map((sem) => (
-                  <SemesterColumn
-                    key={sem.id}
-                    semester={sem}
-                    customCourses={activePlan.customCourses}
-                    onRemoveCourse={(courseId) => removeCourseFromSemester(sem.id, courseId)}
-                    onCourseClick={setSelectedCourse}
-                    onGradeChange={(courseId, grade) => updateCourseGrade(sem.id, courseId, grade)}
-                    onCpChange={(courseId, cp) => updateCourseCp(sem.id, courseId, cp)}
-                    onRemoveSemester={
-                      activePlan.semesters.length > 1 && sem.courses.length === 0
-                        ? () => removeSemester(sem.id)
-                        : undefined
-                    }
-                  />
-                ))}
+        {/* Course detail modal */}
+        {selectedCourse && (
+          <CourseDetail
+            course={selectedCourse}
+            onClose={() => setSelectedCourse(null)}
+            onAddToSemester={(semId) => addCourseToSemester(semId, selectedCourse.id)}
+            semesters={activePlan.semesters.map(s => ({ id: s.id, label: s.label }))}
+            isPlaced={placedCourseIds.has(selectedCourse.id)}
+            schedule={getSchedule(selectedCourse.id, selectedCourse.schedule)}
+            onScheduleChange={setSchedule}
+            onScheduleReset={clearSchedule}
+            hasScheduleOverride={selectedCourse.id in overrides}
+          />
+        )}
 
+        {/* Import confirmation dialog */}
+        {importPending && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-96 mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-gray-800">Import Plans</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                How would you like to import? <strong>Replace</strong> will overwrite all existing plans.{' '}
+                <strong>Merge</strong> will add the imported plans alongside your current ones.
+              </p>
+              {importError && (
+                <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{importError}</p>
+              )}
+              <div className="mt-4 flex gap-2">
                 <button
-                  onClick={addSemester}
-                  className="flex w-full md:w-32 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-blue-300 py-3 md:py-0 text-sm font-medium text-blue-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-colors"
+                  onClick={() => handleImportConfirm('replace')}
+                  className="flex-1 rounded bg-red-500 px-3 py-2 text-sm font-medium text-white hover:bg-red-600"
                 >
-                  + Add Semester
+                  Replace All
+                </button>
+                <button
+                  onClick={() => handleImportConfirm('merge')}
+                  className="flex-1 rounded bg-blue-500 px-3 py-2 text-sm font-medium text-white hover:bg-blue-600"
+                >
+                  Merge
+                </button>
+                <button
+                  onClick={() => { setImportPending(null); setImportError(null); }}
+                  className="rounded border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
                 </button>
               </div>
-
-              <div className="shrink-0 border-t p-4 max-h-64 overflow-y-auto">
-                <ProgressTracker progress={progress} />
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-hidden">
-              <SchedulePlanner
-                semesters={activePlan.semesters}
-                customCourses={activePlan.customCourses}
-                onCourseClick={setSelectedCourse}
-                scheduleOverrides={overrides}
-                selectedSemId={scheduleSemId}
-                onSelectedSemIdChange={setScheduleSemId}
-              />
-            </div>
-          )}
-        </div>
-
-        <DragOverlay>
-          {activeDragCourse && (
-            <div className="w-56">
-              <CourseCard
-                course={activeDragCourse}
-                draggableId="overlay"
-                isDragOverlay
-              />
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-
-      {/* Course detail modal */}
-      {selectedCourse && (
-        <CourseDetail
-          course={selectedCourse}
-          onClose={() => setSelectedCourse(null)}
-          onAddToSemester={(semId) => addCourseToSemester(semId, selectedCourse.id)}
-          semesters={activePlan.semesters.map(s => ({ id: s.id, label: s.label }))}
-          isPlaced={placedCourseIds.has(selectedCourse.id)}
-          schedule={getSchedule(selectedCourse.id, selectedCourse.schedule)}
-          onScheduleChange={setSchedule}
-          onScheduleReset={clearSchedule}
-          hasScheduleOverride={selectedCourse.id in overrides}
-        />
-      )}
-
-      {/* Import confirmation dialog */}
-      {importPending && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-96 mx-4 rounded-xl bg-white p-4 sm:p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-800">Import Plans</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              How would you like to import? <strong>Replace</strong> will overwrite all existing plans.{' '}
-              <strong>Merge</strong> will add the imported plans alongside your current ones.
-            </p>
-            {importError && (
-              <p className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{importError}</p>
-            )}
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => handleImportConfirm('replace')}
-                className="flex-1 rounded bg-red-500 px-3 py-2 text-sm font-medium text-white hover:bg-red-600"
-              >
-                Replace All
-              </button>
-              <button
-                onClick={() => handleImportConfirm('merge')}
-                className="flex-1 rounded bg-blue-500 px-3 py-2 text-sm font-medium text-white hover:bg-blue-600"
-              >
-                Merge
-              </button>
-              <button
-                onClick={() => { setImportPending(null); setImportError(null); }}
-                className="rounded border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Import error (no pending data) */}
-      {importError && !importPending && (
-        <div className="fixed bottom-4 right-4 z-50 rounded-lg bg-red-500 px-4 py-3 text-sm text-white shadow-lg">
-          <div className="flex items-center gap-2">
-            <span>Import error: {importError}</span>
-            <button onClick={() => setImportError(null)} className="ml-2 font-bold hover:opacity-80">×</button>
+        {/* Import error (no pending data) */}
+        {importError && !importPending && (
+          <div className="fixed bottom-4 right-4 z-50 rounded-lg bg-red-500 px-4 py-3 text-sm text-white shadow-lg">
+            <div className="flex items-center gap-2">
+              <span>Import error: {importError}</span>
+              <button onClick={() => setImportError(null)} className="ml-2 font-bold hover:opacity-80">×</button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </ProgramProvider>
   );
 }

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { TimeSlot } from '../types';
 
-const STORAGE_KEY = 'lst-planner-schedule-overrides';
-
 type ScheduleOverrides = Record<string, TimeSlot[]>;
 
-function load(): ScheduleOverrides {
+function load(storageKey: string): ScheduleOverrides {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) return JSON.parse(raw);
   } catch {
     // corrupted
@@ -15,16 +13,18 @@ function load(): ScheduleOverrides {
   return {};
 }
 
-function save(data: ScheduleOverrides) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function save(storageKey: string, data: ScheduleOverrides) {
+  localStorage.setItem(storageKey, JSON.stringify(data));
 }
 
-export function useScheduleOverrides() {
-  const [overrides, setOverrides] = useState<ScheduleOverrides>(load);
+export function useScheduleOverrides(storagePrefix: string) {
+  const STORAGE_KEY = `${storagePrefix}-schedule-overrides`;
+
+  const [overrides, setOverrides] = useState<ScheduleOverrides>(() => load(STORAGE_KEY));
 
   useEffect(() => {
-    save(overrides);
-  }, [overrides]);
+    save(STORAGE_KEY, overrides);
+  }, [STORAGE_KEY, overrides]);
 
   const getSchedule = useCallback((courseId: string, defaultSchedule?: TimeSlot[]): TimeSlot[] | undefined => {
     if (courseId in overrides) return overrides[courseId];

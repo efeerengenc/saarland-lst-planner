@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Course, Semester } from '../types';
-import { getCourseById } from '../data/courses';
+import { useProgram } from '../context/ProgramContext';
 import { CourseCard } from './CourseCard';
 
 interface SemesterColumnProps {
@@ -23,6 +23,7 @@ export function SemesterColumn({
   onCpChange,
   onRemoveSemester,
 }: SemesterColumnProps) {
+  const program = useProgram();
   const { setNodeRef, isOver } = useDroppable({
     id: semester.id,
     data: { type: 'semester', semesterId: semester.id },
@@ -30,7 +31,7 @@ export function SemesterColumn({
 
   const coursesWithData = semester.courses.map(pc => ({
     placed: pc,
-    course: getCourseById(pc.courseId) ?? customCourses.find(c => c.id === pc.courseId),
+    course: program.courses.find(c => c.id === pc.courseId) ?? customCourses.find(c => c.id === pc.courseId),
   }));
 
   const totalCP = coursesWithData.reduce((sum, { placed, course }) => sum + (placed.cpOverride ?? course?.cp ?? 0), 0);

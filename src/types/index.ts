@@ -1,15 +1,6 @@
-export type CourseCategory =
-  | 'basic'
-  | 'core'
-  | 'advanced'
-  | 'seminar'
-  | 'software-project'
-  | 'cs-cogpsy'
-  | 'master-seminar'
-  | 'master-thesis'
-  | 'tutoring'
-  | 'internship'
-  | 'other';
+// Categories and buckets are now strings to support any program
+export type CourseCategory = string;
+export type BucketId = string;
 
 export type SemesterType = 'WS' | 'SS';
 
@@ -29,10 +20,10 @@ export interface Course {
   nameDE?: string;
   cp: number;
   cpOptions?: number[];  // e.g. [4, 7] for seminars (4 CP = Referat only, 7 CP = Referat + Hausarbeit)
-  sws: number;
+  sws?: number;
   category: CourseCategory;
   graded: boolean;
-  offeredIn: SemesterType[];
+  offeredIn: SemesterType[] | readonly string[];
   instructor?: string;
   cmsUrl?: string;
   lsfUrl?: string;
@@ -65,14 +56,6 @@ export interface StudyPlan {
   updatedAt: number;
 }
 
-export type BucketId =
-  | 'basic-core'
-  | 'seminars'
-  | 'cs-cogpsy'
-  | 'electives'
-  | 'master-seminar'
-  | 'master-thesis';
-
 export interface BucketRule {
   id: BucketId;
   label: string;
@@ -102,4 +85,26 @@ export interface ExportEnvelope {
   exportedAt: number;
   plans: StudyPlan[];
   scheduleOverrides: Record<string, TimeSlot[]>;
+}
+
+// ═══════════════════════════════════════════
+// Program config — per-program data & rules
+// ═══════════════════════════════════════════
+
+export interface ProgramConfig {
+  id: string;
+  name: string;             // "Language Science & Technology"
+  shortName: string;        // "LST"
+  courses: Course[];
+  categoryLabels: Record<string, string>;
+  categoryColors: Record<string, string>;
+  categoryPdfColors: Record<string, { bg: [number, number, number]; text: [number, number, number]; border: [number, number, number] }>;
+  catalogGroups: { label: string; categories: string[] }[];
+  bucketRules: BucketRule[];
+  categoryToBucket: Record<string, string>;   // category → default bucket id
+  overflowCategories: string[];               // categories that can overflow to electives
+  electivesBucket: string;                    // which bucket is "electives"
+  totalRequired: number;
+  storagePrefix: string;                      // localStorage key prefix
+  specialChecks?: (buckets: BucketProgress[], allPlaced: { course: Course; placed: PlacedCourse }[]) => void;
 }

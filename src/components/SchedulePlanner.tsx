@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Course, Semester, TimeSlot, Weekday } from '../types';
-import { getCourseById, COURSES, CATEGORY_COLORS } from '../data/courses';
+import { useProgram } from '../context/ProgramContext';
 import { exportSchedulePDF } from '../lib/pdfExport';
 
 interface SchedulePlannerProps {
@@ -36,6 +36,7 @@ export interface ScheduleEntry {
 const BROWSE_MODE_ID = '__browse__';
 
 export function SchedulePlanner({ semesters, customCourses, onCourseClick, scheduleOverrides, selectedSemId, onSelectedSemIdChange: setSelectedSemId }: SchedulePlannerProps) {
+  const program = useProgram();
   const [extraCourseIds, setExtraCourseIds] = useState<Set<string>>(new Set());
   const [showCoursePicker, setShowCoursePicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
@@ -63,7 +64,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
 
   if (semester) {
     for (const pc of semester.courses) {
-      const course = getCourseById(pc.courseId) ?? customCourses.find(c => c.id === pc.courseId);
+      const course = program.courses.find(c => c.id === pc.courseId) ?? customCourses.find(c => c.id === pc.courseId);
       if (course) {
         for (const slot of resolveSchedule(course)) {
           entries.push({ course, slot, isExtra: false });
@@ -75,7 +76,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
   // Extra / browsed courses
   for (const courseId of extraCourseIds) {
     if (semesterCourseIds.has(courseId)) continue;
-    const course = getCourseById(courseId) ?? customCourses.find(c => c.id === courseId);
+    const course = program.courses.find(c => c.id === courseId) ?? customCourses.find(c => c.id === courseId);
     if (course) {
       for (const slot of resolveSchedule(course)) {
         entries.push({ course, slot, isExtra: !isBrowseMode });
@@ -97,7 +98,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
   }
 
   // All courses with schedule data (for the picker)
-  const allScheduled = [...COURSES, ...customCourses].filter(c => resolveSchedule(c).length > 0);
+  const allScheduled = [...program.courses, ...customCourses].filter(c => resolveSchedule(c).length > 0);
   const filteredForPicker = pickerSearch
     ? allScheduled.filter(c =>
         c.name.toLowerCase().includes(pickerSearch.toLowerCase()) ||
@@ -250,7 +251,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
           <button
             onClick={() => {
               const label = semester?.label ?? 'Browse';
-              exportSchedulePDF(entries, label);
+              exportSchedulePDF(entries, label, program);
             }}
             disabled={entries.length === 0}
             className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -369,7 +370,7 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                     const endMin = timeToMinutes(entry.slot.end);
                     const top = minutesToY(startMin);
                     const height = minutesToY(endMin) - top;
-                    const colors = CATEGORY_COLORS[entry.course.category] ?? CATEGORY_COLORS['other'];
+                    const colors = program.categoryColors[entry.course.category] ?? program.categoryColors['other'] ?? 'bg-slate-100 border-slate-300 text-slate-800';
                     const isConflict = conflicts.has(entry.course.id);
                     const entryKey = `${entry.course.id}-${entries.indexOf(entry)}`;
                     const layout = layoutMap.get(entryKey) ?? { col: 0, totalCols: 1 };

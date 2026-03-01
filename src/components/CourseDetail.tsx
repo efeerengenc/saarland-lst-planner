@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Course, TimeSlot, Weekday } from '../types';
-import { CATEGORY_COLORS, CATEGORY_LABELS } from '../data/courses';
+import { useProgram } from '../context/ProgramContext';
 
 const WEEKDAYS: Weekday[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -27,7 +27,8 @@ export function CourseDetail({
   onScheduleReset,
   hasScheduleOverride,
 }: CourseDetailProps) {
-  const colors = CATEGORY_COLORS[course.category] ?? CATEGORY_COLORS['other'];
+  const program = useProgram();
+  const colors = program.categoryColors[course.category] ?? program.categoryColors['other'] ?? 'bg-slate-100 border-slate-300 text-slate-800';
   const [editingSchedule, setEditingSchedule] = useState(false);
   const effectiveSchedule = schedule ?? course.schedule ?? [];
 
@@ -54,13 +55,13 @@ export function CourseDetail({
             <span className="rounded bg-white/50 px-2 py-0.5 text-sm font-bold">
               {course.cp} CP
             </span>
-            {course.sws > 0 && (
+            {course.sws && course.sws > 0 && (
               <span className="rounded bg-white/50 px-2 py-0.5 text-sm">
                 {course.sws} SWS
               </span>
             )}
             <span className="rounded bg-white/50 px-2 py-0.5 text-sm">
-              {CATEGORY_LABELS[course.category]}
+              {program.categoryLabels[course.category] ?? course.category}
             </span>
             {course.offeredIn.map(s => (
               <span key={s} className="rounded bg-white/40 px-2 py-0.5 text-sm">{s}</span>

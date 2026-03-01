@@ -2,7 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Course } from '../types';
-import { CATEGORY_COLORS } from '../data/courses';
+import { useProgram } from '../context/ProgramContext';
 
 interface CourseCardProps {
   course: Course;
@@ -29,6 +29,7 @@ export function CourseCard({
   compact = false,
   isDragOverlay = false,
 }: CourseCardProps) {
+  const program = useProgram();
   const {
     attributes,
     listeners,
@@ -47,7 +48,7 @@ export function CourseCard({
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const colors = CATEGORY_COLORS[course.category] ?? CATEGORY_COLORS['other'];
+  const colors = program.categoryColors[course.category] ?? program.categoryColors['other'] ?? 'bg-slate-100 border-slate-300 text-slate-800';
 
   const displayCP = cpOverride ?? course.cp;
 
@@ -182,6 +183,7 @@ export function CatalogCourseCard({
   isPlaced: boolean;
   onClick: () => void;
 }) {
+  const program = useProgram();
   const {
     attributes,
     listeners,
@@ -194,7 +196,7 @@ export function CatalogCourseCard({
     disabled: isPlaced,
   });
 
-  const colors = CATEGORY_COLORS[course.category] ?? CATEGORY_COLORS['other'];
+  const colors = program.categoryColors[course.category] ?? program.categoryColors['other'] ?? 'bg-slate-100 border-slate-300 text-slate-800';
 
   const style = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
