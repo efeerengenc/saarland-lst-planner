@@ -196,12 +196,13 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
       </div>
 
       {/* Top bar */}
-      <header className="flex shrink-0 items-center justify-between border-b bg-white px-2 py-2 sm:px-4 shadow-sm gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <header className="shrink-0 border-b bg-white shadow-sm">
+        {/* Row 1: Program selector + plan controls */}
+        <div className="flex items-center gap-2 px-2 py-1.5 sm:px-4 sm:py-2">
           {/* Mobile hamburger */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100"
+            className="md:hidden rounded p-1 text-gray-500 hover:bg-gray-100 shrink-0"
             title="Open course catalog"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -213,22 +214,25 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
           <select
             value={programId}
             onChange={(e) => onProgramChange(e.target.value)}
-            className="rounded border px-2 py-1 text-sm font-bold text-gray-800 bg-transparent cursor-pointer"
+            className="rounded border px-1.5 sm:px-2 py-1 text-xs sm:text-sm font-bold text-gray-800 bg-transparent cursor-pointer min-w-0 shrink"
           >
             {PROGRAMS.map(p => (
               <option key={p.id} value={p.id}>{p.shortName} Study Planner</option>
             ))}
           </select>
 
-          <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+          <span className="hidden sm:inline rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 shrink-0">
             Saarland University
           </span>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Plan selector + actions */}
           <select
             value={activePlanId}
             onChange={(e) => setActivePlanId(e.target.value)}
-            className="rounded border px-2 py-1 text-sm max-w-[140px] sm:max-w-none"
+            className="rounded border px-1.5 sm:px-2 py-1 text-xs sm:text-sm min-w-0 shrink max-w-[120px] sm:max-w-none"
           >
             {plans.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
@@ -236,7 +240,7 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
           </select>
           <button
             onClick={() => createNewPlan(`Plan ${plans.length + 1}`)}
-            className="rounded bg-blue-500 px-2 sm:px-3 py-1 text-sm font-medium text-white hover:bg-blue-600"
+            className="rounded bg-blue-500 px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium text-white hover:bg-blue-600 shrink-0"
           >
             <span className="sm:hidden">+</span>
             <span className="hidden sm:inline">+ New Plan</span>
@@ -244,7 +248,7 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
           {plans.length > 1 && (
             <button
               onClick={() => deletePlan(activePlanId)}
-              className="rounded border border-red-200 px-2 py-1 text-sm text-red-500 hover:bg-red-50"
+              className="hidden sm:inline-block rounded border border-red-200 px-2 py-1 text-sm text-red-500 hover:bg-red-50 shrink-0"
             >
               Delete
             </button>
@@ -252,18 +256,50 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
           <div className="hidden sm:block ml-1 h-4 w-px bg-gray-300" />
           <button
             onClick={handleExport}
-            className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
+            className="hidden sm:inline-block rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50 shrink-0"
             title="Export all plans as JSON"
           >
-            ↓<span className="hidden sm:inline"> Export</span>
+            ↓ Export
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50"
+            className="hidden sm:inline-block rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50 shrink-0"
             title="Import plans from JSON file"
           >
-            ↑<span className="hidden sm:inline"> Import</span>
+            ↑ Import
           </button>
+          {/* Mobile-only compact buttons for export/import/delete */}
+          <div className="flex items-center gap-1 sm:hidden">
+            {plans.length > 1 && (
+              <button
+                onClick={() => deletePlan(activePlanId)}
+                className="rounded border border-red-200 p-1 text-red-500 hover:bg-red-50"
+                title="Delete plan"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={handleExport}
+              className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-50"
+              title="Export"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded border border-gray-300 p-1 text-gray-600 hover:bg-gray-50"
+              title="Import"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            </button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
