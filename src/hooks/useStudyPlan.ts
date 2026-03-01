@@ -18,18 +18,46 @@ function createDefaultPlan(): StudyPlan {
   };
 }
 
-function loadPlans(storageKey: string): StudyPlan[] {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // corrupted data
-  }
-  return [];
+/**
+ * Tagged storage format. The `owner` field is the storagePrefix of the program
+ * that owns this data. If a different program's data is found, it's treated as
+ * corrupted (from a bug in an earlier version) and cleared.
+ */
+interface TaggedPlans {
+  owner: string;
+  plans: StudyPlan[];
 }
 
-function savePlans(storageKey: string, plans: StudyPlan[]) {
-  localStorage.setItem(storageKey, JSON.stringify(plans));
+function loadPlans(storageKey: string, expectedOwner: string): StudyPlan[] {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+
+    // New tagged format: { owner, plans }
+    if (parsed && typeof parsed === 'object' && 'owner' in parsed) {
+      if (parsed.owner !== expectedOwner) {
+        // Data belongs to another program — corrupted by a previous bug. Clear it.
+        console.warn(`[StudyPlanner] Clearing corrupted data in ${storageKey}: owned by "${parsed.owner}", expected "${expectedOwner}"`);
+        localStorage.removeItem(storageKey);
+        return [];
+      }
+      return parsed.plans ?? [];
+    }
+
+    // Legacy format: bare array (backward-compatible for pre-tagged data)
+    if (Array.isArray(parsed)) return parsed;
+
+    return [];
+  } catch {
+    // corrupted JSON
+    return [];
+  }
+}
+
+function savePlans(storageKey: string, owner: string, plans: StudyPlan[]) {
+  const tagged: TaggedPlans = { owner, plans };
+  localStorage.setItem(storageKey, JSON.stringify(tagged));
 }
 
 function loadActivePlanId(activeKey: string): string | null {
@@ -45,10 +73,10 @@ export function useStudyPlan(storagePrefix: string) {
   const ACTIVE_PLAN_KEY = `${storagePrefix}-active`;
 
   const [plans, setPlans] = useState<StudyPlan[]>(() => {
-    const loaded = loadPlans(STORAGE_KEY);
+    const loaded = loadPlans(STORAGE_KEY, storagePrefix);
     if (loaded.length === 0) {
       const def = createDefaultPlan();
-      savePlans(STORAGE_KEY, [def]);
+      savePlans(STORAGE_KEY, storagePrefix, [def]);
       saveActivePlanId(ACTIVE_PLAN_KEY, def.id);
       return [def];
     }
@@ -63,10 +91,10 @@ export function useStudyPlan(storagePrefix: string) {
 
   const activePlan = plans.find(p => p.id === activePlanId) ?? plans[0];
 
-  // Persist on change
+  // Persist on change — always tag with the owning program
   useEffect(() => {
-    savePlans(STORAGE_KEY, plans);
-  }, [STORAGE_KEY, plans]);
+    savePlans(STORAGE_KEY, storagePrefix, plans);
+  }, [STORAGE_KEY, storagePrefix, plans]);
 
   useEffect(() => {
     saveActivePlanId(ACTIVE_PLAN_KEY, activePlanId);

@@ -3,28 +3,51 @@ import type { TimeSlot } from '../types';
 
 type ScheduleOverrides = Record<string, TimeSlot[]>;
 
-function load(storageKey: string): ScheduleOverrides {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // corrupted
-  }
-  return {};
+interface TaggedOverrides {
+  owner: string;
+  data: ScheduleOverrides;
 }
 
-function save(storageKey: string, data: ScheduleOverrides) {
-  localStorage.setItem(storageKey, JSON.stringify(data));
+function load(storageKey: string, expectedOwner: string): ScheduleOverrides {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+
+    // Tagged format: { owner, data }
+    if (parsed && typeof parsed === 'object' && 'owner' in parsed) {
+      if (parsed.owner !== expectedOwner) {
+        console.warn(`[StudyPlanner] Clearing corrupted schedule overrides in ${storageKey}: owned by "${parsed.owner}", expected "${expectedOwner}"`);
+        localStorage.removeItem(storageKey);
+        return {};
+      }
+      return parsed.data ?? {};
+    }
+
+    // Legacy format: bare object (backward-compatible)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+function save(storageKey: string, owner: string, data: ScheduleOverrides) {
+  const tagged: TaggedOverrides = { owner, data };
+  localStorage.setItem(storageKey, JSON.stringify(tagged));
 }
 
 export function useScheduleOverrides(storagePrefix: string) {
   const STORAGE_KEY = `${storagePrefix}-schedule-overrides`;
 
-  const [overrides, setOverrides] = useState<ScheduleOverrides>(() => load(STORAGE_KEY));
+  const [overrides, setOverrides] = useState<ScheduleOverrides>(() => load(STORAGE_KEY, storagePrefix));
 
   useEffect(() => {
-    save(STORAGE_KEY, overrides);
-  }, [STORAGE_KEY, overrides]);
+    save(STORAGE_KEY, storagePrefix, overrides);
+  }, [STORAGE_KEY, storagePrefix, overrides]);
 
   const getSchedule = useCallback((courseId: string, defaultSchedule?: TimeSlot[]): TimeSlot[] | undefined => {
     if (courseId in overrides) return overrides[courseId];
