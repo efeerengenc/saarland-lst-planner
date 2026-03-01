@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { Course, Semester, TimeSlot, Weekday } from '../types';
 import { useProgram } from '../context/ProgramContext';
 import { exportSchedulePDF } from '../lib/pdfExport';
-import { downloadICS, generateICS } from '../lib/icalExport';
+import { openInAppleCalendar, openInGoogleCalendar, downloadICS } from '../lib/icalExport';
 
 interface SchedulePlannerProps {
   semesters: Semester[];
@@ -271,7 +271,47 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
             📤 Export ▾
           </button>
           {showExportMenu && entries.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+            <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+              {/* Direct calendar add */}
+              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Add to Calendar
+              </div>
+              <button
+                onClick={() => {
+                  const count = openInGoogleCalendar(entries);
+                  setShowExportMenu(false);
+                  if (count > 1) {
+                    // Small toast-like feedback (alert for now)
+                    setTimeout(() => alert(`Opened ${count} events in Google Calendar. Click "Save" on each tab to add them.`), 300);
+                  }
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
+              >
+                <span className="text-base">🗓️</span>
+                <div>
+                  <div className="font-medium text-gray-700">Google Calendar</div>
+                  <div className="text-gray-400">Opens pre-filled events — just save</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  const label = semester?.label ?? 'Browse';
+                  openInAppleCalendar(entries, label);
+                  setShowExportMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
+              >
+                <span className="text-base">📅</span>
+                <div>
+                  <div className="font-medium text-gray-700">Apple Calendar</div>
+                  <div className="text-gray-400">Opens Calendar.app directly</div>
+                </div>
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              {/* Export options */}
+              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Export
+              </div>
               <button
                 onClick={() => {
                   const label = semester?.label ?? 'Browse';
@@ -280,13 +320,12 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                 }}
                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
               >
-                <span>📄</span>
+                <span className="text-base">📄</span>
                 <div>
-                  <div className="font-medium text-gray-700">Export as PDF</div>
+                  <div className="font-medium text-gray-700">PDF</div>
                   <div className="text-gray-400">Printable weekly overview</div>
                 </div>
               </button>
-              <div className="border-t border-gray-100 my-1" />
               <button
                 onClick={() => {
                   const label = semester?.label ?? 'Browse';
@@ -295,35 +334,10 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
                 }}
                 className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
               >
-                <span>📅</span>
+                <span className="text-base">📥</span>
                 <div>
-                  <div className="font-medium text-gray-700">Apple Calendar (.ics)</div>
-                  <div className="text-gray-400">Opens directly in Calendar.app</div>
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  const label = semester?.label ?? 'Browse';
-                  const ics = generateICS(entries, label);
-                  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `schedule-${label.replace(/\s+/g, '-').toLowerCase()}.ics`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  // Open Google Calendar import page
-                  window.open('https://calendar.google.com/calendar/r/settings/export', '_blank');
-                  setShowExportMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
-              >
-                <span>🗓️</span>
-                <div>
-                  <div className="font-medium text-gray-700">Google Calendar</div>
-                  <div className="text-gray-400">Download .ics + open import</div>
+                  <div className="font-medium text-gray-700">Download .ics</div>
+                  <div className="text-gray-400">For Outlook or manual import</div>
                 </div>
               </button>
               <div className="border-t border-gray-100 my-1" />

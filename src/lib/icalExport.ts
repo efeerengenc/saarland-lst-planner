@@ -2,10 +2,12 @@ import type { ScheduleEntry } from '../components/SchedulePlanner';
 import type { Weekday } from '../types';
 
 /**
- * Generate an .ics (iCalendar) file from schedule entries.
+ * Generate .ics (iCalendar) files and Google Calendar URLs from schedule entries.
  *
- * The exported events are recurring weekly events spanning the semester.
- * Compatible with Google Calendar (import), Apple Calendar (native), and Outlook.
+ * Supports:
+ * - Apple Calendar: open .ics directly (triggers Calendar.app)
+ * - Google Calendar: direct URL with pre-filled recurring events
+ * - Generic .ics download for Outlook, etc.
  */
 
 const WEEKDAY_TO_RRULE: Record<Weekday, string> = {
@@ -16,7 +18,6 @@ const WEEKDAY_TO_RRULE: Record<Weekday, string> = {
   Fri: 'FR',
 };
 
-// Semester date ranges — user picks start/end or we use sensible defaults
 // German university semesters:
 //   WS: mid-October to mid-February  (lectures ~ Oct 14 – Feb 7)
 //   SS: mid-April to mid-July        (lectures ~ Apr 14 – Jul 18)
@@ -26,26 +27,20 @@ function getNextSemesterDates(): { start: Date; end: Date } {
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
 
-  // If we're in Aug-Dec → upcoming WS starts Oct of this year
-  // If Jan-Feb → current WS ends Feb this year
-  // If Mar-Jul → upcoming SS starts Apr this year
   if (month >= 7) {
-    // Aug-Dec → WS this year
     return {
-      start: new Date(year, 9, 14), // Oct 14
-      end: new Date(year + 1, 1, 7), // Feb 7 next year
+      start: new Date(year, 9, 14),
+      end: new Date(year + 1, 1, 7),
     };
   } else if (month <= 1) {
-    // Jan-Feb → current WS
     return {
-      start: new Date(year - 1, 9, 14), // Oct 14 last year
-      end: new Date(year, 1, 7), // Feb 7 this year
+      start: new Date(year - 1, 9, 14),
+      end: new Date(year, 1, 7),
     };
   } else {
-    // Mar-Jul → SS this year
     return {
-      start: new Date(year, 3, 14), // Apr 14
-      end: new Date(year, 6, 18), // Jul 18
+      start: new Date(year, 3, 14),
+      end: new Date(year, 6, 18),
     };
   }
 }
@@ -84,10 +79,26 @@ function uid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}@study-planner`;
 }
 
+/** Deduplicate entries by course+slot identity */
+function dedupeEntries(entries: ScheduleEntry[]): ScheduleEntry[] {
+  const seen = new Set<string>();
+  const unique: ScheduleEntry[] = [];
+  for (const entry of entries) {
+    const key = `${entry.course.id}|${entry.slot.day}|${entry.slot.start}|${entry.slot.end}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(entry);
+    }
+  }
+  return unique;
+}
+
 export interface CalendarExportOptions {
   semesterStart?: Date;
   semesterEnd?: Date;
 }
+
+// ─── .ics generation ───────────────────────────────────────────
 
 export function generateICS(
   entries: ScheduleEntry[],
@@ -98,16 +109,7 @@ export function generateICS(
   const semStart = options?.semesterStart ?? defaults.start;
   const semEnd = options?.semesterEnd ?? defaults.end;
 
-  // Deduplicate entries by course+slot (same course+day+start+end = one event)
-  const seen = new Set<string>();
-  const unique: ScheduleEntry[] = [];
-  for (const entry of entries) {
-    const key = `${entry.course.id}|${entry.slot.day}|${entry.slot.start}|${entry.slot.end}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(entry);
-    }
-  }
+  const unique = dedupeEntries(entries);
 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
@@ -151,6 +153,88 @@ export function generateICS(
   return lines.join('\r\n');
 }
 
+// ─── Apple Calendar — open .ics directly ───────────────────────
+
+/**
+ * Opens the .ics content directly in the browser.
+ * On macOS / iOS this triggers Calendar.app to open with an "Add events" prompt.
+ * No manual file import needed.
+ */
+export function openInAppleCalendar(entries: ScheduleEntry[], semesterLabel: string, options?: CalendarExportOptions): void {
+  const ics = generateICS(entries, semesterLabel, options);
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  // Navigate to the blob URL — macOS/iOS intercepts text/calendar and opens Calendar.app
+  window.open(url, '_blank');
+  // Clean up after a short delay (the OS will have grabbed the content by then)
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ─── Google Calendar — direct URL API ──────────────────────────
+
+/**
+ * Generate a Google Calendar event creation URL for a single schedule entry.
+ * Opens Google Calendar with a pre-filled event — user just clicks "Save".
+ *
+ * Google Calendar URL supports:
+ * - text: event title
+ * - dates: start/end in YYYYMMDDTHHmmss format
+ * - recur: RRULE for recurring events
+ * - location: room
+ * - details: description
+ */
+function buildGoogleCalendarURL(entry: ScheduleEntry, semStart: Date, semEnd: Date): string {
+  const firstDay = firstWeekdayOnOrAfter(semStart, entry.slot.day);
+  const rruleDay = WEEKDAY_TO_RRULE[entry.slot.day];
+
+  const dtStart = formatICSDateTime(firstDay, entry.slot.start);
+  const dtEnd = formatICSDateTime(firstDay, entry.slot.end);
+  const until = formatICSDate(semEnd);
+
+  const params = new URLSearchParams();
+  params.set('action', 'TEMPLATE');
+  params.set('text', entry.course.name);
+  params.set('dates', `${dtStart}/${dtEnd}`);
+  params.set('recur', `RRULE:FREQ=WEEKLY;BYDAY=${rruleDay};UNTIL=${until}T235959`);
+
+  if (entry.slot.room) {
+    params.set('location', entry.slot.room);
+  }
+
+  const details: string[] = [];
+  if (entry.course.instructor) details.push(`Instructor: ${entry.course.instructor}`);
+  if (entry.slot.type) details.push(`Type: ${entry.slot.type}`);
+  if (details.length > 0) {
+    params.set('details', details.join('\n'));
+  }
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+/**
+ * Open all schedule entries directly in Google Calendar.
+ * Each unique course+slot opens in a new tab with a pre-filled recurring event.
+ * User just clicks "Save" on each tab.
+ *
+ * Returns the number of events opened.
+ */
+export function openInGoogleCalendar(entries: ScheduleEntry[], options?: CalendarExportOptions): number {
+  const defaults = getNextSemesterDates();
+  const semStart = options?.semesterStart ?? defaults.start;
+  const semEnd = options?.semesterEnd ?? defaults.end;
+
+  const unique = dedupeEntries(entries);
+
+  for (const entry of unique) {
+    const url = buildGoogleCalendarURL(entry, semStart, semEnd);
+    window.open(url, '_blank');
+  }
+
+  return unique.length;
+}
+
+// ─── Generic .ics download ─────────────────────────────────────
+
 export function downloadICS(entries: ScheduleEntry[], semesterLabel: string, options?: CalendarExportOptions): void {
   const ics = generateICS(entries, semesterLabel, options);
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
@@ -162,13 +246,4 @@ export function downloadICS(entries: ScheduleEntry[], semesterLabel: string, opt
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-/**
- * Build a Google Calendar "add event" URL for a single entry.
- * Google Calendar doesn't support recurring events via URL, so we open the import flow instead.
- * For bulk import, use the .ics file.
- */
-export function googleCalendarImportURL(): string {
-  return 'https://calendar.google.com/calendar/r/settings/export';
 }
