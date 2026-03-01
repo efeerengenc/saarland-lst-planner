@@ -78,12 +78,9 @@ export default function App() {
     const overId = over.id as string;
 
     const activeParts = activeId.split('::');
-    if (activeParts.length !== 3) return;
 
-    const [fromSemId, courseId] = activeParts;
-
+    // Determine target semester
     let toSemId: string;
-
     if (over.data.current?.type === 'semester') {
       toSemId = over.data.current.semesterId;
     } else {
@@ -92,8 +89,19 @@ export default function App() {
       toSemId = overParts[0];
     }
 
-    if (fromSemId === toSemId) return;
+    // Drag from catalog → add to semester
+    if (activeParts[0] === 'catalog' && activeParts.length >= 2) {
+      const courseId = activeParts[1];
+      if (!placedCourseIds.has(courseId)) {
+        addCourseToSemester(toSemId, courseId);
+      }
+      return;
+    }
 
+    // Drag between semesters
+    if (activeParts.length !== 3) return;
+    const [fromSemId, courseId] = activeParts;
+    if (fromSemId === toSemId) return;
     moveCourse(fromSemId, toSemId, courseId);
   }
 
@@ -294,25 +302,25 @@ export default function App() {
       )}
 
       {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar — desktop only */}
-        <div className="hidden md:block w-72 shrink-0 overflow-hidden border-r bg-white">
-          <CourseCatalog
-            placedCourseIds={placedCourseIds}
-            customCourses={activePlan.customCourses}
-            onCourseClick={setSelectedCourse}
-            onAddCustomCourse={addCustomCourse}
-          />
-        </div>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar — desktop only */}
+          <div className="hidden md:block w-72 shrink-0 overflow-hidden border-r bg-white">
+            <CourseCatalog
+              placedCourseIds={placedCourseIds}
+              customCourses={activePlan.customCourses}
+              onCourseClick={setSelectedCourse}
+              onAddCustomCourse={addCustomCourse}
+            />
+          </div>
 
-        {/* Center content */}
-        {viewMode === 'planner' ? (
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <DndContext
-              sensors={sensors}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
+          {/* Center content */}
+          {viewMode === 'planner' ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
               <div className="flex flex-1 flex-col md:flex-row gap-3 overflow-x-auto p-3 sm:p-4">
                 {activePlan.semesters.map((sem) => (
                   <SemesterColumn
@@ -339,36 +347,36 @@ export default function App() {
                 </button>
               </div>
 
-              <DragOverlay>
-                {activeDragCourse && (
-                  <div className="w-56">
-                    <CourseCard
-                      course={activeDragCourse}
-                      draggableId="overlay"
-                      isDragOverlay
-                    />
-                  </div>
-                )}
-              </DragOverlay>
-            </DndContext>
-
-            <div className="shrink-0 border-t p-4 max-h-64 overflow-y-auto">
-              <ProgressTracker progress={progress} />
+              <div className="shrink-0 border-t p-4 max-h-64 overflow-y-auto">
+                <ProgressTracker progress={progress} />
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-hidden">
-            <SchedulePlanner
-              semesters={activePlan.semesters}
-              customCourses={activePlan.customCourses}
-              onCourseClick={setSelectedCourse}
-              scheduleOverrides={overrides}
-              selectedSemId={scheduleSemId}
-              onSelectedSemIdChange={setScheduleSemId}
-            />
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex-1 overflow-hidden">
+              <SchedulePlanner
+                semesters={activePlan.semesters}
+                customCourses={activePlan.customCourses}
+                onCourseClick={setSelectedCourse}
+                scheduleOverrides={overrides}
+                selectedSemId={scheduleSemId}
+                onSelectedSemIdChange={setScheduleSemId}
+              />
+            </div>
+          )}
+        </div>
+
+        <DragOverlay>
+          {activeDragCourse && (
+            <div className="w-56">
+              <CourseCard
+                course={activeDragCourse}
+                draggableId="overlay"
+                isDragOverlay
+              />
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* Course detail modal */}
       {selectedCourse && (

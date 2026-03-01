@@ -1,3 +1,4 @@
+import { useDraggable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Course } from '../types';
@@ -171,7 +172,7 @@ function CpToggle({
   );
 }
 
-/** Non-draggable card for the catalog sidebar */
+/** Draggable card for the catalog sidebar */
 export function CatalogCourseCard({
   course,
   isPlaced,
@@ -181,15 +182,35 @@ export function CatalogCourseCard({
   isPlaced: boolean;
   onClick: () => void;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: `catalog::${course.id}`,
+    data: { type: 'course', courseId: course.id },
+    disabled: isPlaced,
+  });
+
   const colors = CATEGORY_COLORS[course.category] ?? CATEGORY_COLORS['other'];
 
+  const style = {
+    transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
   return (
-    <button
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
       onClick={onClick}
       className={`w-full rounded-lg border-2 p-2 text-left transition-all ${colors} ${
-        isPlaced ? 'opacity-40' : 'hover:shadow-md hover:-translate-y-0.5'
+        isPlaced ? 'opacity-40' : 'cursor-grab active:cursor-grabbing hover:shadow-md hover:-translate-y-0.5'
       }`}
-      disabled={isPlaced}
     >
       <div className="flex items-start justify-between gap-1">
         <span className="text-sm font-medium leading-tight">{course.name}</span>
@@ -206,6 +227,6 @@ export function CatalogCourseCard({
         ))}
         {isPlaced && <span className="text-xs italic">placed</span>}
       </div>
-    </button>
+    </div>
   );
 }
