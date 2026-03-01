@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Course, Semester, TimeSlot, Weekday } from '../types';
 import { useProgram } from '../context/ProgramContext';
 import { exportSchedulePDF } from '../lib/pdfExport';
+import { downloadICS, generateICS } from '../lib/icalExport';
 
 interface SchedulePlannerProps {
   semesters: Semester[];
@@ -40,6 +41,20 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
   const [extraCourseIds, setExtraCourseIds] = useState<Set<string>>(new Set());
   const [showCoursePicker, setShowCoursePicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExportMenu]);
 
   const isBrowseMode = selectedSemId === BROWSE_MODE_ID;
   const semester = isBrowseMode ? null : semesters.find(s => s.id === selectedSemId);
@@ -247,18 +262,76 @@ export function SchedulePlanner({ semesters, customCourses, onCourseClick, sched
             {extraCourseIds.size} {isBrowseMode ? '' : 'extra '}course{extraCourseIds.size > 1 ? 's' : ''} {isBrowseMode ? 'selected' : 'shown'}
           </span>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto relative" ref={exportMenuRef}>
           <button
-            onClick={() => {
-              const label = semester?.label ?? 'Browse';
-              exportSchedulePDF(entries, label, program);
-            }}
+            onClick={() => setShowExportMenu(!showExportMenu)}
             disabled={entries.length === 0}
             className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Export schedule as PDF"
           >
-            📄 Export PDF
+            📤 Export ▾
           </button>
+          {showExportMenu && entries.length > 0 && (
+            <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+              <button
+                onClick={() => {
+                  const label = semester?.label ?? 'Browse';
+                  exportSchedulePDF(entries, label, program);
+                  setShowExportMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
+              >
+                <span>📄</span>
+                <div>
+                  <div className="font-medium text-gray-700">Export as PDF</div>
+                  <div className="text-gray-400">Printable weekly overview</div>
+                </div>
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => {
+                  const label = semester?.label ?? 'Browse';
+                  downloadICS(entries, label);
+                  setShowExportMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
+              >
+                <span>📅</span>
+                <div>
+                  <div className="font-medium text-gray-700">Apple Calendar (.ics)</div>
+                  <div className="text-gray-400">Opens directly in Calendar.app</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  const label = semester?.label ?? 'Browse';
+                  const ics = generateICS(entries, label);
+                  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `schedule-${label.replace(/\s+/g, '-').toLowerCase()}.ics`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  // Open Google Calendar import page
+                  window.open('https://calendar.google.com/calendar/r/settings/export', '_blank');
+                  setShowExportMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
+              >
+                <span>🗓️</span>
+                <div>
+                  <div className="font-medium text-gray-700">Google Calendar</div>
+                  <div className="text-gray-400">Download .ics + open import</div>
+                </div>
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <div className="px-3 py-1.5 text-xs text-gray-400">
+                Events repeat weekly for the semester
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
