@@ -3,7 +3,7 @@ import type { BucketProgress, Course, ProgramConfig } from '../../types';
 // ═══════════════════════════════════════════════════════════════════
 // BIOINFORMATICS M.Sc. — Course Catalog
 // Data from LSF Saarland University (WiSe 2025/26 + SoSe 2026)
-// Program structure from Studienordnung 21 January 2016
+// Program structure from Studienordnung 2025
 // ═══════════════════════════════════════════════════════════════════
 
 export const BIOINFO_COURSES: Course[] = [
@@ -139,6 +139,22 @@ export const BIOINFO_COURSES: Course[] = [
       { day: 'Tue', start: '14:00', end: '16:00', room: 'E2 5 Hörsaal I' },
     ],
   },
+  {
+    id: 'bioinfo-im3',
+    name: 'Database Systems',
+    cp: 9,
+    category: 'core-cs',
+    graded: true,
+    offeredIn: ['WS'],
+  },
+  {
+    id: 'bioinfo-im12',
+    name: 'Security',
+    cp: 9,
+    category: 'core-cs',
+    graded: true,
+    offeredIn: ['WS', 'SS'],
+  },
 
   // ─────────────────────────────────────────────
   // ADVANCED BIOSCIENCES (category: 'adv-bioscience')
@@ -222,6 +238,33 @@ export const BIOINFO_COURSES: Course[] = [
     schedule: [
       { day: 'Mon', start: '12:00', end: '14:00', room: 'E2 1 SR 0.01' },
     ],
+  },
+  {
+    id: 'bioinfo-bm3',
+    name: 'Systems and Synthetic Biotechnology',
+    cp: 3,
+    category: 'adv-bioscience',
+    graded: true,
+    offeredIn: ['WS', 'SS'],
+    schedule: [],
+  },
+  {
+    id: 'bioinfo-bm4',
+    name: 'Bio-Reaction Engineering',
+    cp: 6,
+    category: 'adv-bioscience',
+    graded: true,
+    offeredIn: ['WS', 'SS'],
+    schedule: [],
+  },
+  {
+    id: 'bioinfo-bm5',
+    name: 'Cellular Programs',
+    cp: 5,
+    category: 'adv-bioscience',
+    graded: true,
+    offeredIn: ['WS', 'SS'],
+    schedule: [],
   },
   {
     id: 'bioinfo-bm5-2',
@@ -350,10 +393,10 @@ export const BIOINFO_COURSES: Course[] = [
   {
     id: 'bioinfo-bipm1',
     name: 'Programming Course',
-    cp: 5,
+    cp: 8,
     category: 'practical-bioscience',
     instructor: 'Dr. Keller',
-    graded: false,
+    graded: true,
     offeredIn: ['SS'],
     schedule: [
       { day: 'Tue', start: '12:15', end: '13:45', room: 'E2 1 SR 0.01' },
@@ -362,50 +405,64 @@ export const BIOINFO_COURSES: Course[] = [
   },
 
   // ─────────────────────────────────────────────
-  // KEY CAREER SKILLS (category: 'career-skills')
+  // KEY ACCOUNT QUALIFICATIONS (category: 'career-skills')
+  // Ungraded, 0 CP minimum required
   // ─────────────────────────────────────────────
   {
     id: 'bioinfo-ebm1',
-    name: 'Organization of Scientific Research',
+    name: 'Möglichkeiten und Grenzen der Bioinformatik in rechtlicher Hinsicht',
+    nameDE: 'Möglichkeiten und Grenzen der Bioinformatik in rechtlicher Hinsicht',
     cp: 1,
     category: 'career-skills',
-    instructor: 'Prof. Dr. Volkhard Helms',
+    instructor: '',
     graded: false,
-    offeredIn: ['SS'],
+    offeredIn: ['WS', 'SS'],
     schedule: [],
-  },
-  {
-    id: 'bioinfo-ebm1b',
-    name: 'Scientific Writing',
-    cp: 1,
-    category: 'career-skills',
-    instructor: 'Dr. Michael Hutter',
-    graded: false,
-    offeredIn: ['SS'],
-    schedule: [],
-    description: 'Block course, dates TBA',
+    description: 'Legal aspects of bioinformatics.',
   },
   {
     id: 'bioinfo-ebm2',
     name: 'Project Management',
+    nameDE: 'Projektmanagement',
     cp: 1,
     category: 'career-skills',
     instructor: '',
     graded: false,
-    offeredIn: [],
+    offeredIn: ['WS', 'SS'],
     schedule: [],
-    description: 'May be offered outside regular LSF listing',
   },
   {
     id: 'bioinfo-ebm3',
-    name: 'Patent Law and Bioethics',
+    name: 'Bioethics',
+    nameDE: 'Bioethik',
+    cp: 2,
+    category: 'career-skills',
+    instructor: '',
+    graded: false,
+    offeredIn: ['WS', 'SS'],
+    schedule: [],
+  },
+  {
+    id: 'bioinfo-ebm4',
+    name: 'Scientific Publishing',
+    nameDE: 'Wissenschaftliches Publizieren',
     cp: 1,
     category: 'career-skills',
     instructor: '',
     graded: false,
-    offeredIn: [],
+    offeredIn: ['WS', 'SS'],
     schedule: [],
-    description: 'May be offered outside regular LSF listing',
+  },
+  {
+    id: 'bioinfo-ebm5',
+    name: 'Entrepreneurship and Patent Law in Natural Sciences',
+    nameDE: 'Unternehmensgründung und Patentwesen in den Naturwissenschaften',
+    cp: 3,
+    category: 'career-skills',
+    instructor: '',
+    graded: false,
+    offeredIn: ['WS', 'SS'],
+    schedule: [],
   },
 
   // ─────────────────────────────────────────────
@@ -488,23 +545,31 @@ export const BIOINFO_COURSES: Course[] = [
   },
 
   // ─────────────────────────────────────────────
-  // MASTER'S SEMINAR (category: 'master-seminar')
+  // MASTER'S THESIS MODULE (category: 'master-thesis')
+  // Total: 42 CP (Practical 9 + Seminar 3 + Thesis 30)
   // ─────────────────────────────────────────────
   {
-    id: 'bioinfo-bims1',
-    name: "Master's Seminar on Topics in Bioinformatics",
-    cp: 12,
-    category: 'master-seminar',
+    id: 'bioinfo-bims-practical',
+    name: "Master Practical Training",
+    cp: 9,
+    category: 'master-thesis',
     instructor: '',
     graded: true,
     offeredIn: ['WS', 'SS'],
     schedule: [],
-    description: 'Arranged individually with supervisor',
+    description: 'Practical training conducted at the research group where the thesis is carried out.',
   },
-
-  // ─────────────────────────────────────────────
-  // MASTER'S THESIS (category: 'master-thesis')
-  // ─────────────────────────────────────────────
+  {
+    id: 'bioinfo-bims1',
+    name: "Master's Seminar on Topics in Bioinformatics",
+    cp: 3,
+    category: 'master-thesis',
+    instructor: '',
+    graded: true,
+    offeredIn: ['WS', 'SS'],
+    schedule: [],
+    description: 'Seminar accompanying the Master thesis.',
+  },
   {
     id: 'bioinfo-thesis',
     name: "Master's Thesis",
@@ -526,14 +591,13 @@ export const bioinformaticsProgram: ProgramConfig = {
 
   categoryLabels: {
     'core-cs': 'Core CS Lectures',
-    'adv-bioscience': 'Advanced Biosciences',
+    'adv-bioscience': 'Advanced Life Sciences',
     'adv-bioinformatics': 'Advanced Bioinformatics',
-    'practical-bioscience': 'Practical Skills (Bio)',
-    'career-skills': 'Key Career Skills',
-    'adv-practical': 'Advanced Practical Skills',
+    'practical-bioscience': 'Practical Training',
+    'career-skills': 'Key Account Qualifications',
+    'adv-practical': 'Advanced Practical Training',
     'seminar': 'Seminars',
-    'master-seminar': "Master's Seminar",
-    'master-thesis': "Master's Thesis",
+    'master-thesis': "Master's Thesis Module",
     'other': 'Other',
   },
 
@@ -545,7 +609,6 @@ export const bioinformaticsProgram: ProgramConfig = {
     'career-skills':        'bg-gray-100 border-gray-300 text-gray-800',
     'adv-practical':        'bg-teal-100 border-teal-300 text-teal-800',
     'seminar':              'bg-amber-100 border-amber-300 text-amber-800',
-    'master-seminar':       'bg-rose-100 border-rose-300 text-rose-800',
     'master-thesis':        'bg-red-100 border-red-300 text-red-800',
     'other':                'bg-slate-100 border-slate-300 text-slate-800',
   },
@@ -558,19 +621,18 @@ export const bioinformaticsProgram: ProgramConfig = {
     'career-skills':        { bg: [243, 244, 246], text: [31, 41, 55],   border: [209, 213, 219] },
     'adv-practical':        { bg: [204, 251, 241], text: [17, 94, 89],   border: [94, 234, 212] },
     'seminar':              { bg: [254, 243, 199], text: [146, 64, 14],  border: [252, 211, 77] },
-    'master-seminar':       { bg: [255, 228, 230], text: [159, 18, 57],  border: [253, 164, 175] },
     'master-thesis':        { bg: [254, 226, 226], text: [185, 28, 28],  border: [252, 165, 165] },
     'other':                { bg: [241, 245, 249], text: [30, 41, 59],   border: [203, 213, 225] },
   },
 
   catalogGroups: [
     { label: 'Core CS Lectures', categories: ['core-cs'] },
-    { label: 'Advanced Biosciences', categories: ['adv-bioscience'] },
+    { label: 'Advanced Life Sciences', categories: ['adv-bioscience'] },
     { label: 'Advanced Bioinformatics', categories: ['adv-bioinformatics'] },
-    { label: 'Practical Skills', categories: ['practical-bioscience', 'adv-practical'] },
+    { label: 'Practical Training', categories: ['practical-bioscience', 'adv-practical'] },
     { label: 'Seminars', categories: ['seminar'] },
-    { label: 'Career Skills', categories: ['career-skills'] },
-    { label: 'Final Modules', categories: ['master-seminar', 'master-thesis'] },
+    { label: 'Key Account Qualifications', categories: ['career-skills'] },
+    { label: 'Master Thesis Module', categories: ['master-thesis'] },
   ],
 
   bucketRules: [
@@ -579,56 +641,49 @@ export const bioinformaticsProgram: ProgramConfig = {
       label: 'Core CS Lectures',
       minCP: 18,
       maxCP: null,
-      description: 'At least 18 CP from core lecture courses in computer science.',
+      description: 'At least 18 CP from core lecture courses in computer science (graded).',
     },
     {
       id: 'adv-bioscience',
-      label: 'Advanced Biosciences',
+      label: 'Advanced Life Sciences',
       minCP: 12,
       maxCP: null,
-      description: 'At least 12 CP from advanced lectures in the biosciences.',
+      description: 'At least 12 CP from advanced lectures of life sciences (graded).',
     },
     {
       id: 'adv-bioinformatics',
       label: 'Advanced Bioinformatics',
       minCP: 19,
       maxCP: null,
-      description: 'At least 19 CP from advanced lectures in bioinformatics.',
+      description: 'At least 19 CP from advanced lectures of bioinformatics (graded).',
     },
     {
       id: 'practical',
-      label: 'Practical Skills',
-      minCP: 5,
+      label: 'Practical Training',
+      minCP: 8,
       maxCP: null,
-      description: 'At least 5 CP from practical skills classes in the biosciences.',
+      description: 'At least 8 CP from practical training of bioinformatics (graded).',
     },
     {
       id: 'seminar',
       label: 'Seminars',
       minCP: 7,
       maxCP: null,
-      description: 'At least 7 CP from seminars on topics in bioinformatics. Max 2 seminars on certificate.',
+      description: 'At least 7 CP from seminars on bioinformatics topics. Maximum of two seminars.',
     },
     {
       id: 'electives',
       label: 'Free Electives',
       minCP: 0,
       maxCP: null,
-      description: 'Remaining 17 CP from any permitted category. Max 2 seminars (S-M-1) on certificate.',
-    },
-    {
-      id: 'master-seminar',
-      label: "Master's Seminar",
-      minCP: 12,
-      maxCP: 12,
-      description: "12 CP Master's Seminar. Must be completed before the thesis.",
+      description: '14 CP from permitted categories, tutoring (4 CP each), or language courses (max 6 CP total).',
     },
     {
       id: 'master-thesis',
-      label: "Master's Thesis",
-      minCP: 30,
-      maxCP: 30,
-      description: "30 CP Master's Thesis (6 months). Register within 1 semester of completing the Master's Seminar.",
+      label: "Master's Thesis Module",
+      minCP: 42,
+      maxCP: 42,
+      description: "42 CP total: Master Practical Training (9 CP) + Master Seminar (3 CP) + Thesis (30 CP). All graded.",
     },
   ],
 
@@ -640,7 +695,6 @@ export const bioinformaticsProgram: ProgramConfig = {
     'career-skills': 'electives',
     'adv-practical': 'electives',
     'seminar': 'seminar',
-    'master-seminar': 'master-seminar',
     'master-thesis': 'master-thesis',
     'other': 'electives',
   },
