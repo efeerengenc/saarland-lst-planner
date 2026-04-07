@@ -94,6 +94,11 @@ export function CourseCatalog({
                 </button>
                 {isExpanded && (
                   <div className="mt-1 space-y-1.5 pl-1">
+                    {group.categories.includes('cs-cogpsy') && (
+                      <div className="mb-1.5 rounded bg-amber-50 border border-amber-200 px-2 py-1.5 text-xs text-amber-700">
+                        <strong>Note:</strong> Get approval from Stefan Thater before choosing a CS course to make sure it counts towards your LST degree.
+                      </div>
+                    )}
                     {courses.map(course => (
                       <CatalogCourseCard
                         key={course.id}
@@ -189,7 +194,7 @@ function AddCustomCourseForm({
               type="number"
               value={cp}
               onChange={(e) => setCp(parseInt(e.target.value) || 0)}
-              min={1}
+              min={0}
               max={30}
               className="w-full rounded border px-2 py-1 text-sm"
             />
