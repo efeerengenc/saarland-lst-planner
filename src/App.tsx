@@ -24,6 +24,46 @@ import { createExportData, downloadJSON, parseImportFile, remapPlanIds } from '.
 type ViewMode = 'planner' | 'schedule';
 
 const PROGRAM_STORAGE_KEY = 'study-planner-program';
+const PROGRESS_HEIGHT_KEY = 'study-planner-progress-height';
+const SIDEBAR_WIDTH_KEY = 'study-planner-sidebar-width';
+const DEFAULT_PROGRESS_HEIGHT = 256;
+const DEFAULT_SIDEBAR_WIDTH = 288;
+
+/** Generic pointer-drag resize: tracks movement along one axis, clamps, persists on release */
+function startResize(
+  e: React.PointerEvent,
+  opts: {
+    axis: 'x' | 'y';
+    start: number;
+    min: number;
+    max: number;
+    /** true when dragging toward the panel should shrink it (e.g. handle sits above/left of it) */
+    invert?: boolean;
+    onChange: (v: number) => void;
+    storageKey: string;
+  },
+) {
+  e.preventDefault();
+  const origin = opts.axis === 'x' ? e.clientX : e.clientY;
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = opts.axis === 'x' ? 'col-resize' : 'row-resize';
+  let latest = opts.start;
+  const onMove = (ev: PointerEvent) => {
+    const pos = opts.axis === 'x' ? ev.clientX : ev.clientY;
+    const delta = opts.invert ? origin - pos : pos - origin;
+    latest = Math.min(Math.max(opts.start + delta, opts.min), opts.max);
+    opts.onChange(latest);
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    localStorage.setItem(opts.storageKey, String(latest));
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
 
 /**
  * Top-level App: manages program selection only.
@@ -94,6 +134,14 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scheduleSemId, setScheduleSemId] = useState(activePlan.semesters[0]?.id ?? '__browse__');
+  const [progressHeight, setProgressHeight] = useState(() => {
+    const v = Number(localStorage.getItem(PROGRESS_HEIGHT_KEY));
+    return Number.isFinite(v) && v >= 96 ? v : DEFAULT_PROGRESS_HEIGHT;
+  });
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const v = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    return Number.isFinite(v) && v >= 200 ? v : DEFAULT_SIDEBAR_WIDTH;
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -439,13 +487,31 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
         onDragEnd={handleDragEnd}
       >
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar — desktop only */}
-          <div className="hidden md:block w-72 shrink-0 overflow-hidden border-r bg-white">
-            <CourseCatalog
-              placedCourseIds={placedCourseIds}
-              customCourses={activePlan.customCourses}
-              onCourseClick={setSelectedCourse}
-              onAddCustomCourse={addCustomCourse}
+          {/* Sidebar — desktop only, resizable via right-edge handle */}
+          <div className="hidden md:flex shrink-0">
+            <div className="overflow-hidden border-r bg-white" style={{ width: sidebarWidth }}>
+              <CourseCatalog
+                placedCourseIds={placedCourseIds}
+                customCourses={activePlan.customCourses}
+                onCourseClick={setSelectedCourse}
+                onAddCustomCourse={addCustomCourse}
+              />
+            </div>
+            <div
+              onPointerDown={(e) => startResize(e, {
+                axis: 'x',
+                start: sidebarWidth,
+                min: 200,
+                max: Math.round(window.innerWidth * 0.5),
+                onChange: setSidebarWidth,
+                storageKey: SIDEBAR_WIDTH_KEY,
+              })}
+              onDoubleClick={() => {
+                setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+                localStorage.setItem(SIDEBAR_WIDTH_KEY, String(DEFAULT_SIDEBAR_WIDTH));
+              }}
+              className="w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-blue-300 active:bg-blue-400 transition-colors"
+              title="Drag to resize catalog · double-click to reset"
             />
           </div>
 
@@ -478,8 +544,29 @@ function AppContent({ program, programId, onProgramChange }: AppContentProps) {
                 </button>
               </div>
 
-              <div className="shrink-0 border-t p-4 max-h-64 overflow-y-auto">
-                <ProgressTracker progress={progress} />
+              <div className="flex shrink-0 flex-col border-t">
+                <div
+                  onPointerDown={(e) => startResize(e, {
+                    axis: 'y',
+                    start: progressHeight,
+                    min: 96,
+                    max: Math.round(window.innerHeight * 0.75),
+                    invert: true, // handle sits above the panel: dragging up grows it
+                    onChange: setProgressHeight,
+                    storageKey: PROGRESS_HEIGHT_KEY,
+                  })}
+                  onDoubleClick={() => {
+                    setProgressHeight(DEFAULT_PROGRESS_HEIGHT);
+                    localStorage.setItem(PROGRESS_HEIGHT_KEY, String(DEFAULT_PROGRESS_HEIGHT));
+                  }}
+                  className="group flex h-2.5 shrink-0 cursor-row-resize items-center justify-center bg-gray-100 hover:bg-blue-200 active:bg-blue-300 transition-colors"
+                  title="Drag to resize graduation progress · double-click to reset"
+                >
+                  <div className="h-0.5 w-10 rounded-full bg-gray-300 group-hover:bg-blue-400" />
+                </div>
+                <div className="overflow-y-auto p-4" style={{ height: progressHeight }}>
+                  <ProgressTracker progress={progress} />
+                </div>
               </div>
             </div>
           ) : (
