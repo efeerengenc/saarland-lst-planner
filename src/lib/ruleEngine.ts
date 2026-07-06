@@ -48,6 +48,33 @@ function assignCoursesToBuckets(
   if (!electivesRule) return bucketMap;
 
   const electivesCurrent = bucketMap.get(program.electivesBucket)!;
+
+  // Pass 1: relieve buckets that exceed their maximum by moving eligible
+  // courses to electives (e.g. a 3rd seminar counts as a mandatory elective),
+  // as long as the source bucket stays at its minimum and electives has room.
+  for (const rule of program.bucketRules) {
+    if (rule.id === program.electivesBucket || rule.maxCP === null) continue;
+
+    const bucketCourses = bucketMap.get(rule.id)!;
+    const movable = bucketCourses
+      .filter(e => program.overflowCategories.includes(e.course.category) && !e.placed.bucketOverride);
+
+    for (const entry of movable) {
+      const bucketCP = bucketCourses.reduce((sum, e) => sum + effectiveCP(e), 0);
+      if (bucketCP <= rule.maxCP) break;
+
+      const electivesCP = electivesCurrent.reduce((sum, e) => sum + effectiveCP(e), 0);
+      const fitsElectives = electivesRule.maxCP === null || electivesCP + effectiveCP(entry) <= electivesRule.maxCP;
+      if (bucketCP - effectiveCP(entry) >= rule.minCP && fitsElectives) {
+        const idx = bucketCourses.indexOf(entry);
+        bucketCourses.splice(idx, 1);
+        electivesCurrent.push(entry);
+      }
+    }
+  }
+
+  // Pass 2: if electives is still below its minimum, pull surplus courses
+  // from buckets that exceed their own minimum.
   const electivesCP = electivesCurrent.reduce((sum, e) => sum + effectiveCP(e), 0);
 
   if (electivesCP < electivesRule.minCP) {

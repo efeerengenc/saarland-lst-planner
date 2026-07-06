@@ -1694,7 +1694,7 @@ export const lstProgram: ProgramConfig = {
 
   bucketRules: [
     { id: 'basic-core', label: 'Basic + Core Lectures', minCP: 24, maxCP: null, description: 'At least 24 CP from basic and core lectures, of which at least 18 must be from core lectures.' },
-    { id: 'seminars', label: 'Seminars', minCP: 14, maxCP: null, description: '14 CP from seminars (2 seminars worth 7 CP each).' },
+    { id: 'seminars', label: 'Seminars', minCP: 14, maxCP: 14, description: '14 CP from seminars (2 seminars worth 7 CP each). Additional seminars count as mandatory electives.' },
     { id: 'cs-cogpsy', label: 'CS / Cognitive Psychology', minCP: 6, maxCP: 18, description: '6\u201318 CP from courses offered by CS or Cognitive Psychology.' },
     { id: 'electives', label: 'Mandatory Electives', minCP: 19, maxCP: 31, description: '19\u201331 CP from elective courses (advanced lectures, extra seminars, software projects, tutoring, internship).' },
     { id: 'master-seminar', label: "Master's Seminar", minCP: 12, maxCP: 12, description: "12 CP Master's Seminar (ungraded). Must be completed before the thesis." },
@@ -1715,7 +1715,10 @@ export const lstProgram: ProgramConfig = {
     'other': 'electives',
   },
 
-  overflowCategories: ['basic', 'core', 'seminar', 'cs-cogpsy', 'advanced'],
+  // SO §5(2)4: only core lectures, seminars and advanced lectures may overflow
+  // into the electives bucket. Basic lectures and CS/CogPsy courses are NOT
+  // eligible as mandatory electives.
+  overflowCategories: ['core', 'seminar', 'advanced'],
   electivesBucket: 'electives',
   totalRequired: 120,
   storagePrefix: 'lst-planner',
